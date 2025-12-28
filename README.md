@@ -49,4 +49,5 @@
 এটি একটি ব্যক্তিগত প্রজেক্ট হলেও, আপনি যদি কোড ইমপ্রুভমেন্ট বা বাগ ফিক্সিংয়ে সাহায্য করতে চান তবে স্বাগতম! যেকোনো সাজেশনের জন্য **Issue** ওপেন করুন।
 
 ---
-**Created by [Your Name]** *Last Updated: 2025*
+**Created by MUHTASIM RAHMAN (TURZO)** *https://mdturzo.odoo.com*
+
