@@ -1,14 +1,18 @@
 /**
- * 📊 FMT TRACKER PRO - ULTIMATE MASTER LOGIC (FINAL)
+ * 📊 FMT TRACKER PRO - FINAL STABLE VERSION
  * ---------------------------------------------------
- * 🛡️ Security: Hybrid Input (Keyboard for Desktop, Touch for Mobile)
- * 📈 Graph: Fixed Aspect Ratio, Sharper Lines, No Stretch
- * 🔄 Refresh: 720deg Smooth Spin Animation
- * 📱 Responsiveness: Full Mobile Support
+ * Storage: Settings (Local Storage), Data (Google Sheet)
+ * Features: Offline Settings, Online Data, Chart, Notifications
+ * FIXES: 
+ * 1. Data processing logic restored for robust data fetching.
+ * 2. Custom Date/Time input logic verified and cleared on submit.
+ * 3. Header date format updated to "Date Month, Year (Day)".
+ * 4. CRITICAL FIX: Ensure 'time' payload is always sent in HH:mm (24hr) format
+ * to prevent Google Apps Script from defaulting to current time.
  */
 
-// 🌐 1. CONFIGURATION & CONSTANTS
-const API_URL = "Y2V4ZS9tMjMtbV82V0otYmJrVzgxblNtUDljOV9HNHAtVnU0ZEV5VGFjZzMzV0ZiY1ZEVHhZaGo3MWRwaGQ2X3RiV3FKbnpiY3lmS0Evcy9zb3JjYW0vbW9jLmVsZ29vZy50cGlyY3MvLzpzcHR0aA==";
+// 🌐 1. CONFIGURATION
+const RAW_URL = "Y2V4ZS9tMjMtbV82V0otYmJrVzgxblNtUDljOV9HNHAtVnU0ZEV5VGFjZzMzV0ZiY1ZEVHhZaGo3MWRwaGQ2X3RiV3FKbnpiY3lmS0Evcy9zb3JjYW0vbW9jLmVsZ29vZy50cGlyY3MvLzpzcHR0aA=="; 
 
 // 🛠️ DOM UTILITIES
 const $ = s => document.querySelector(s);
@@ -18,13 +22,26 @@ const $$ = s => document.querySelectorAll(s);
 let allEntries = [];
 let branchChart = null;
 let centralChart = null;
-let notifTimes = JSON.parse(localStorage.getItem('fmt_notifs')) || [];
-let notifEnabled = JSON.parse(localStorage.getItem('fmt_notif_status')) === true;
-let autoPinVerify = JSON.parse(localStorage.getItem('fmt_pin_auto')) !== false; // Default true
+
+// Local Storage Keys
+const LS_PIN = 'fmt_pin';
+const LS_THEME = 'fmt_theme';
+const LS_NOTIFS = 'fmt_notifs';
+const LS_NOTIF_STATUS = 'fmt_notif_status';
+const LS_PIN_AUTO = 'fmt_pin_auto';
+
+// State Variables (Loaded from Local Storage)
+let notifTimes = JSON.parse(localStorage.getItem(LS_NOTIFS)) || [];
+let notifEnabled = JSON.parse(localStorage.getItem(LS_NOTIF_STATUS)) === true;
+let autoPinVerify = JSON.parse(localStorage.getItem(LS_PIN_AUTO)) !== false; // Default true
 let lastCheckedMinute = -1;
 
-// Helper to get stored PIN
-const getSavedPin = () => localStorage.getItem('fmt_pin') || "000000";
+// Encryption Helper
+function decrypt(text){ return atob(text).split('').reverse().join(''); }
+const getApiUrl = () => RAW_URL.includes("http") ? RAW_URL : decrypt(RAW_URL);
+
+// PIN Helper (Local Priority -> Default "000000")
+const getSavedPin = () => localStorage.getItem(LS_PIN) || "000000"; 
 
 
 // 📣 2. NOTIFICATION & TOASTS 📣
@@ -41,25 +58,40 @@ function showToast(msg, type = "default") {
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+// Helper to convert 24hr time (HH:mm) for display purposes only (notifications/modals)
 function format12hr(time24) {
     if (!time24) return "N/A";
     let [hrs, mins] = time24.split(':');
     hrs = parseInt(hrs);
     const period = hrs >= 12 ? 'PM' : 'AM';
-    hrs = hrs % 12 || 12;
+    hrs = hrs % 12 || 12; 
+    mins = String(mins).padStart(2, '0');
     return `${hrs}:${mins} ${period}`;
+}
+
+// FIX for Extra 2: Date Header Format
+function updateDateDisplay() {
+    const now = new Date();
+    const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+    const dayOptions = { weekday: 'long' };
+    
+    const datePart = now.toLocaleDateString('bn-BD', dateOptions); 
+    const dayPart = now.toLocaleDateString('bn-BD', dayOptions); 
+    
+    const dateStr = `${datePart} (${dayPart})`;
+
+    if ($('#dateSub')) $('#dateSub').textContent = dateStr;
 }
 
 
 // 🔐 3. SECURITY & PIN MANAGEMENT 🔐
 
-// Render visual dots for PIN input
 function handlePinInput(val) {
     const dots = $$('.v-dot');
     const isVisible = $('#pinViewToggle') ? $('#pinViewToggle').checked : false;
     
     dots.forEach((dot, i) => {
-        dot.innerHTML = ""; // Clear previous content
+        dot.innerHTML = ""; 
         if (i < val.length) {
             dot.classList.add('has-val');
             dot.textContent = isVisible ? val[i] : "●"; 
@@ -75,7 +107,6 @@ function handlePinInput(val) {
     }
 }
 
-// Handle Keypad Presses (Virtual & Physical)
 function handleKeyPress(key) {
     const input = $('#pinInput');
     let currentVal = input.value;
@@ -90,11 +121,9 @@ function handleKeyPress(key) {
             input.value = currentVal + key;
         }
     }
-    
     handlePinInput(input.value);
 }
 
-// PIN verification and lock animation
 function triggerParticles(container) {
     const existingParticles = container.querySelector('.particles');
     if (existingParticles) existingParticles.remove();
@@ -106,15 +135,12 @@ function triggerParticles(container) {
     for (let i = 0; i < 15; i++) {
         const p = document.createElement('span');
         p.className = 'particle';
-        
         const angle = Math.random() * Math.PI * 2;
         const distance = 60 + Math.random() * 80; 
         const x = Math.cos(angle) * distance + "px";
         const y = Math.sin(angle) * distance + "px";
-        
         p.style.setProperty('--p-x', x);
         p.style.setProperty('--p-y', y);
-        
         const size = 6 + Math.random() * 8 + "px";
         p.style.width = size;
         p.style.height = size;
@@ -137,15 +163,13 @@ function processPin(val) {
         setTimeout(() => {
             $('#pinGate').classList.add('hidden');
             $('#app').classList.remove('hidden');
-            fetchData();
+            fetchData(); 
             requestNotifPermission();
-        }, 1200); // Cinematic delay to show animation
+        }, 1200); 
     } else {
         showToast("ভুল পিন! আবার চেষ্টা করুন", "error");
         lockBtn.classList.add('error-shake');
-        
         if(navigator.vibrate) navigator.vibrate([80, 50, 80]); 
-
         setTimeout(() => {
             lockBtn.classList.remove('error-shake');
             $('#pinInput').value = "";
@@ -154,32 +178,12 @@ function processPin(val) {
     }
 }
 
-
-// Focus Input on Desktop Click
-const pinWrapper = document.querySelector('.pin-box-wrapper');
-if (pinWrapper) {
-    pinWrapper.addEventListener('click', () => {
-        const input = document.getElementById('pinInput');
-        if(input) input.focus();
-    });
-}
-
-// Toggle Visibility of PIN
 window.toggleLockPinView = () => {
     const input = $('#pinInput');
     handlePinInput(input.value); 
 };
 
-// Toggle Password Field Type (Settings)
-window.togglePass = (id) => {
-    const input = $(`#${id}`);
-    const btn = input.nextElementSibling.querySelector('i');
-    input.type = input.type === "password" ? "text" : "password";
-    btn.className = input.type === "password" ? "fas fa-eye" : "fas fa-eye-slash";
-};
-
-// Change User PIN Logic
-async function changePin() {
+function changePin() {
     const oldPin = $('#oldPinSet').value;
     const newPin = $('#newPinSet').value;
     const confirmPin = $('#confirmPinSet').value;
@@ -188,40 +192,131 @@ async function changePin() {
     if (newPin.length !== 6 || !/^\d+$/.test(newPin)) return showToast("নতুন পিন শুধুমাত্র ৬ ডিজিটের সংখ্যা হতে হবে", "error");
     if (newPin !== confirmPin) return showToast("নতুন পিন দুটি মেলেনি", "error");
 
-    localStorage.setItem('fmt_pin', newPin);
+    localStorage.setItem(LS_PIN, newPin);
     showToast("পিন সফলভাবে পরিবর্তন হয়েছে", "success");
     $('#oldPinSet').value = ""; $('#newPinSet').value = ""; $('#confirmPinSet').value = "";
 }
 
 
-// 📡 4. DATA FETCHING ENGINE 📡
+// 📡 4. DATA FETCHING & SUBMITTING 📡
 
 async function fetchData() {
     try {
-        const url = atob(API_URL).split("").reverse().join("");
-        const res = await fetch(url);
+        const refreshIcon = $('#refreshDataBtn i');
+        if(refreshIcon) refreshIcon.classList.add('spinning'); 
+
+        const res = await fetch(getApiUrl());
         if (!res.ok) throw new Error("Network response was not ok");
         
-        const data = await res.json();
+        const rawData = await res.json();
 
-        // Process Data: Add Serial, Sort by Date
-        allEntries = data.filter(d => d.date).map((entry, index) => ({
-            ...entry,
-            serial: index + 1
-        })).sort((a, b) => new Date(a.date) - new Date(b.date));
-        
+        // Handle simple array response or wrapped response
+        const dataArray = Array.isArray(rawData) ? rawData : (rawData.results || []);
+
+        // Process Data: Filter, convert to number, and assign a chronological serial if missing
+        allEntries = dataArray
+            .filter(d => d.date) // Filter out rows without a date
+            .map((entry, index) => ({
+                ...entry,
+                // Ensure serial exists and is a number. Use index+1 as fallback chronological serial.
+                serial: Number(entry.serial) || (index + 1), 
+                branch: Number(entry.branch),
+                central: Number(entry.central)
+            }))
+            // Sort by Serial/Date (Oldest First) for chart rendering (chronological)
+            .sort((a, b) => a.serial - b.serial); 
+            
         // Populate Year Filter Dynamically
-        const years = [...new Set(allEntries.map(d => d.date.split('-')[0]))];
-        if ($('#yearSelect')) {
-            const currentVal = $('#yearSelect').value;
-            $('#yearSelect').innerHTML = '<option value="">সব বছর</option>' + 
-                years.map(y => `<option value="${y}" ${y === currentVal ? 'selected' : ''}>${y}</option>`).join('');
+        const years = [...new Set(allEntries.map(d => String(d.date).split('-')[0]))].filter(y => y && y.length === 4);
+        const yearSel = $('#yearSelect');
+        if (yearSel) {
+             const currentVal = yearSel.value;
+             yearSel.innerHTML = '<option value="">সব বছর</option>' + 
+                 years.sort().map(y => `<option value="${y}" ${y === currentVal ? 'selected' : ''}>${y}</option>`).join('');
         }
         
         renderDashboard();
+        
+        if(refreshIcon) refreshIcon.classList.remove('spinning');
+
     } catch (e) {
         console.error(e);
+        $('#refreshDataBtn i')?.classList.remove('spinning');
         showToast("ডাটা লোড করতে সমস্যা হয়েছে", "error");
+    }
+}
+
+// ** DATA SUBMISSION LOGIC (CRITICAL FIX APPLIED HERE) **
+async function submitEntry() {
+    const branch = $('#branchVal').value;
+    const central = $('#centralVal').value;
+    const useCurrent = $('#useCurrentTimeToggle').checked;
+    
+    if (!branch || !central) return showToast("উভয় মেরিট ইনপুট দিন", "error");
+
+    let datePayload, timePayload;
+
+    if (useCurrent) {
+        // Auto Date/Time (Current Time)
+        const now = new Date();
+        // Date in YYYY-MM-DD format
+        datePayload = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+        
+        // FIX: Time in HH:mm (24hr) format
+        timePayload = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+    } else {
+        // Manual Date/Time Logic
+        datePayload = $('#manualDate').value; // YYYY-MM-DD
+        timePayload = $('#manualTime').value; // HH:mm (24h)
+        
+        if (!datePayload || !timePayload) return showToast("তারিখ ও সময় নির্বাচন করুন", "error");
+        
+        // FIX: No conversion needed, sending raw 24hr time (timePayload)
+    }
+
+    const payload = {
+        type: 'entry',
+        branch: branch,
+        central: central,
+        date: datePayload,
+        time: timePayload
+    };
+
+    // UI Loading State
+    const submitBtn = $('#saveEntry');
+    const refreshIcon = $('#refreshDataBtn i');
+    const originalBtnText = submitBtn.textContent;
+    
+    submitBtn.classList.add('btn-loading');
+    submitBtn.textContent = ""; 
+    refreshIcon.classList.add('spinning');
+
+    try {
+        await fetch(getApiUrl(), {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        // FIX for Extra 1: Clear ALL Inputs on Success
+        $('#branchVal').value = "";
+        $('#centralVal').value = "";
+        if(!useCurrent) { // Only clear date/time if custom was used
+            $('#manualDate').value = ""; 
+            $('#manualTime').value = "";
+        }
+        
+        // Refresh Data
+        await fetchData();
+        showToast("তথ্য সফলভাবে জমা হয়েছে!", "success");
+
+    } catch (e) {
+        console.error(e);
+        showToast("ডাটা পাঠাতে ব্যর্থ হয়েছে", "error");
+    } finally {
+        submitBtn.classList.remove('btn-loading');
+        submitBtn.textContent = originalBtnText;
+        refreshIcon.classList.remove('spinning');
     }
 }
 
@@ -237,8 +332,8 @@ function renderDashboard() {
     const start = $('#startDate')?.value;
     const end = $('#endDate')?.value;
 
-    if (year) data = data.filter(d => d.date.startsWith(year));
-    if (month) data = data.filter(d => d.date.split('-')[1] === month);
+    if (year) data = data.filter(d => String(d.date).startsWith(year));
+    if (month) data = data.filter(d => String(d.date).split('-')[1] === month);
     if (start) data = data.filter(d => new Date(d.date) >= new Date(start));
     if (end) data = data.filter(d => new Date(d.date) <= new Date(end));
 
@@ -252,8 +347,9 @@ function updateTable(data) {
     if (!tbody) return;
     tbody.innerHTML = data.length ? "" : '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
 
-    // Show latest on top for table
+    // Show latest on top for table (Reversing chronologically-sorted data)
     [...data].reverse().forEach((d) => {
+        // Since d.time comes from the sheet, it is displayed as is (e.g. 10:20)
         tbody.innerHTML += `
             <tr>
                 <td><span class="sn-badge">${d.serial}</span></td>
@@ -280,93 +376,167 @@ function updateSummary(data) {
         return;
     }
 
-    const last = data[data.length - 1];
-    const bValues = allEntries.map(d => parseInt(d.branch)); 
-    const cValues = allEntries.map(d => parseInt(d.central));
+    const last = data[data.length - 1]; 
+    const bValues = allEntries.map(d => parseInt(d.branch)).filter(Boolean); 
+    const cValues = allEntries.map(d => parseInt(d.central)).filter(Boolean);
 
     const setVal = (id, val) => { if ($(id)) $(id).textContent = val; };
     setVal('#sumLastDate', last.date);
     setVal('#sumBranch', last.branch);
     setVal('#sumCentral', last.central);
-    setVal('#sumBestBranch', Math.min(...bValues));
-    setVal('#sumBestCentral', Math.min(...cValues));
+    setVal('#sumBestBranch', bValues.length ? Math.min(...bValues) : "-");
+    setVal('#sumBestCentral', cValues.length ? Math.min(...cValues) : "-");
     setVal('#sumTotal', data.length);
 }
 
-// 📈 SMART CHART LOGIC (Fixed for Aspect Ratio & Stretch)
+// ⚙️ HELPER FUNCTION: Formats YYYY-MM-DD HH:mm to DD/MM/YY (h:mm AM/PM)
+function formatDateTimeForTooltip(dateStr, timeStr) {
+    // Clean potential single quote from Apps Script fix
+    const cleanTimeStr = timeStr.replace(/^'/, ''); 
+
+    // Date Format: DD/MM/YY
+    if (!dateStr || dateStr.length < 10) {
+        // If date is missing or invalid, return time only
+        return cleanTimeStr; 
+    }
+    const parts = dateStr.split('-'); // Assumes YYYY-MM-DD format
+    const year = parts[0].substring(2); // Last 2 digits of year
+    const month = parts[1];
+    const day = parts[2];
+    const formattedDate = `${day}/${month}/${year}`; 
+
+    // Time Format: 12-hour AM/PM
+    if (!cleanTimeStr) {
+        return formattedDate;
+    }
+    const [hours, minutes] = cleanTimeStr.split(':').map(Number);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12; // Convert 0 to 12
+    const formattedTime = `${hour12}:${String(minutes).padStart(2, '0')} ${ampm}`;
+
+    return `${formattedDate} (${formattedTime})`;
+}
+
+// 📈 CHART LOGIC
 function updateCharts(data) {
     if (!window.Chart) return;
-    const labels = data.map(d => `R-${d.serial}`);
+    
+    // Chart Data must be Oldest First for chronological X-axis
+    const chartData = [...data]; 
+    const labels = chartData.map(d => `R-${d.serial}`); // Serial for X-axis label
 
-    const chartOptions = {
+    // Base Chart Options (shared by both)
+    const baseChartOptions = {
         responsive: true, 
-        maintainAspectRatio: false, // Allows CSS to control the shape
-        layout: {
-            padding: { top: 10, bottom: 10, left: 10, right: 10 }
-        },
+        maintainAspectRatio: false, 
+        layout: { padding: { top: 10, bottom: 10, left: 10, right: 10 } },
+        interaction: { mode: 'index', intersect: false },
         scales: {
-            y: { 
-                reverse: false,
-                beginAtZero: false,
+            y: {
                 grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
                 ticks: { font: { family: 'Inter', size: 11 } }
             },
             x: { 
                 grid: { display: false },
-                ticks: { 
-                    autoSkip: true,
-                    maxTicksLimit: 12, // Prevents overcrowding on x-axis
-                    maxRotation: 0,
-                    font: { family: 'Inter', size: 10 } 
-                }
+                ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0, font: { family: 'Inter', size: 10 } }
             }
         },
         plugins: {
             legend: { display: false },
             tooltip: {
-                backgroundColor: '#1e293b',
-                titleColor: '#fff',
-                bodyColor: '#cbd5e1',
-                displayColors: false,
+                // Aesthetics & Size Fixes
+                backgroundColor: 'rgba(30, 41, 59, 0.98)', 
+                titleColor: '#f8fafc',                    
+                bodyColor: '#cbd5e1',                     
+                borderWidth: 2,                             
+                cornerRadius: 6,                            
+                padding: 10,                                
+                displayColors: false,                       // ⭐ FIX 1: Hides the color box
+                caretSize: 5,                               
+                caretPadding: 5,
+                
+                titleFont: {
+                    family: 'Inter',
+                    size: 13, // Slightly increased size for the main title
+                    weight: '600' // Bold title (Serial Number)
+                },
+                bodyFont: {
+                    family: 'Inter',
+                    size: 12 // Slightly smaller size for date/time and merit
+                },
+
+                // Layout Control (Callbacks)
                 callbacks: {
-                    title: (ctx) => `রিপোর্ট নম্বর: ${ctx[0].label.replace('R-', '')}`,
-                    label: (ctx) => `মেরিট পজিশন: ${ctx.raw}`
+                    // ⭐ FIX 3.1: First line - Only Serial Number (Title)
+                    title: (ctx) => {
+                        return `সিরিয়াল নম্বর: ${ctx[0].label.replace('R-', '')}`;
+                    },
+                    
+                    // Body Lines
+                    beforeBody: (ctx) => {
+                        const serial = ctx[0].label.replace('R-', '');
+                        const entry = chartData.find(d => String(d.serial) === serial);
+                        
+                        if (entry && entry.date) {
+                            // ⭐ FIX 3.2 & 2: Second line - Date and Time (DD/MM/YY (h:mm AM/PM))
+                            const formattedDateTime = formatDateTimeForTooltip(entry.date, entry.time);
+                            // Returns an array of strings, which Chart.js displays before the main label
+                            return [formattedDateTime];
+                        }
+                        return [];
+                    },
+
+                    // ⭐ FIX 3.3: Third line - Branch or Central Merit (Label)
+                    label: (ctx) => {
+                        const datasetLabel = ctx.dataset.label; // 'ব্রাঞ্চ মেরিট' or 'সেন্ট্রাল মেরিট'
+                        return `${datasetLabel}: ${ctx.raw}`;
+                    },
+                    afterBody: (ctx) => {
+                        return []; // Clear any residual after body text
+                    }
                 }
             }
         }
     };
-
-    // Render Branch Chart
+    
+    // Custom function to create options with dynamic border color
+    const getChartOptions = (color) => {
+        const options = JSON.parse(JSON.stringify(baseChartOptions));
+        options.plugins.tooltip.borderColor = color;
+        return options;
+    };
+    
+    // --- Render Branch Chart ---
     if (branchChart) branchChart.destroy();
+    const branchColor = '#6366f1';
     branchChart = new Chart($('#branchChart'), {
         type: 'line',
         data: { labels, datasets: [{ 
-            data: data.map(d => d.branch), 
-            borderColor: '#6366f1', borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6,
-            tension: 0.2, // Sharper lines to prevent flattening look
-            fill: true,
-            backgroundColor: 'rgba(99, 102, 241, 0.1)'
+            label: 'ব্রাঞ্চ মেরিট', 
+            data: chartData.map(d => d.branch), 
+            borderColor: branchColor, borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6,
+            tension: 0.2, fill: true, backgroundColor: 'rgba(99, 102, 241, 0.1)'
         }] },
-        options: chartOptions
+        options: getChartOptions(branchColor)
     });
 
-    // Render Central Chart
+    // --- Render Central Chart ---
     if (centralChart) centralChart.destroy();
+    const centralColor = '#10b981';
     centralChart = new Chart($('#centralChart'), {
         type: 'line',
         data: { labels, datasets: [{ 
-            data: data.map(d => d.central), 
-            borderColor: '#10b981', borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6,
-            tension: 0.2, 
-            fill: true,
-            backgroundColor: 'rgba(16, 185, 129, 0.1)'
+            label: 'সেন্ট্রাল মেরিট',
+            data: chartData.map(d => d.central), 
+            borderColor: centralColor, borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6,
+            tension: 0.2, fill: true, backgroundColor: 'rgba(16, 185, 129, 0.1)'
         }] },
-        options: chartOptions
+        options: getChartOptions(centralColor)
     });
 }
 
 
-// 🧩 6. MODALS & POPUPS 🧩
+// 🧩 6. MODALS & POPUPS (DESIGN RESTORED) 🧩
 
 function openModal(html) {
     const modal = $('#standardModal');
@@ -378,7 +548,7 @@ function openModal(html) {
 
 function closeModal() { $('#standardModal').classList.add('hidden'); }
 
-// Step 1: Warning
+// Step 1: Warning (Restored 3 bullet points)
 function showResetStep1() {
     openModal(`
         <div class="reset-top-banner">
@@ -429,6 +599,7 @@ function showResetStep2() {
 
 function finalReset() {
     if ($('#confirmPin')?.value === getSavedPin()) {
+        // Clear Local Storage Only
         localStorage.clear();
         showToast("সিস্টেম রিসেট করা হয়েছে", "success");
         setTimeout(() => location.reload(), 1500);
@@ -437,10 +608,10 @@ function finalReset() {
     }
 }
 
-// Reminder Deletion Confirmation
+// Reminder Deletion Confirmation (Restored Design)
 window.confirmDelRem = (i) => {
-    const timeRaw = notifTimes[i];
-    const timeDisplay = format12hr(timeRaw);
+    const timeRaw = notifTimes[i]; // Stored in 24hr format
+    const timeDisplay = format12hr(timeRaw); // Converted to 12hr for display
     openModal(`
         <div style="padding:25px; text-align:center;"> 
             <i class="fas fa-bell-slash" style="font-size:30px; color:#f59e0b; margin-bottom:15px;"></i> 
@@ -455,7 +626,7 @@ window.confirmDelRem = (i) => {
 
 function deleteReminder(i) {
     notifTimes.splice(i, 1);
-    localStorage.setItem('fmt_notifs', JSON.stringify(notifTimes));
+    localStorage.setItem(LS_NOTIFS, JSON.stringify(notifTimes));
     renderReminders();
     closeModal();
     showToast("রিমাইন্ডার মুছে ফেলা হয়েছে", "success");
@@ -472,28 +643,34 @@ async function requestNotifPermission() {
 
 function checkNotifications() {
     if (!notifEnabled || notifTimes.length === 0) return;
-    const now = new Date();
-    const currentTime = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-    const currentMinute = now.getHours() * 60 + now.getMinutes();
     
-    if (currentMinute === lastCheckedMinute) return;
-    lastCheckedMinute = currentMinute;
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const mins = String(now.getMinutes()).padStart(2, '0');
+    const currentTime = `${hours}:${mins}`; // 24hr format
+    
+    const currentMinuteVal = now.getHours() * 60 + now.getMinutes();
+    if (currentMinuteVal === lastCheckedMinute) return;
+    lastCheckedMinute = currentMinuteVal;
 
     if (notifTimes.includes(currentTime)) {
-        new Notification("FMT Tracker Pro", {
-            body: `আপনার রিপোর্ট চেক করার সময় হয়েছে (${format12hr(currentTime)})।`,
-            icon: "https://cdn-icons-png.flaticon.com/512/3119/3119338.png"
-        });
+        if (Notification.permission === "granted") {
+            new Notification("FMT Tracker Pro", {
+                body: `আপনার রিপোর্ট চেক করার সময় হয়েছে (${format12hr(currentTime)})।`,
+                icon: "https://cdn-icons-png.flaticon.com/512/3119/3119338.png"
+            });
+        } else {
+            showToast(`⏰ রিমাইন্ডার: রিপোর্ট চেক করুন (${format12hr(currentTime)})`);
+        }
     }
 }
-setInterval(checkNotifications, 10000);
+setInterval(checkNotifications, 5000); 
 
 
 // ⚙️ 8. INITIALIZATION & EVENTS ⚙️
 
-function syncTheme(isDark) {
+function syncThemeUI(isDark) {
     document.body.classList.toggle('dark-theme', isDark);
-    localStorage.setItem('fmt_theme', isDark ? 'dark' : 'light');
     if ($('#darkToggleSet')) $('#darkToggleSet').checked = isDark;
 }
 
@@ -511,36 +688,35 @@ function setupEvents() {
         };
     });
 
-    // Keyboard support for PIN (Physical Keyboard)
     const pinInput = $('#pinInput');
     if(pinInput) {
-        pinInput.addEventListener('input', (e) => {
-            handlePinInput(e.target.value);
-        });
-        
-        // Ensure manual focus management for desktop hidden input
-        pinInput.addEventListener('blur', () => {
-             // Optional: Force focus back if needed, but usually better to leave user control
-        });
+        pinInput.addEventListener('input', (e) => handlePinInput(e.target.value));
+        pinInput.addEventListener('blur', () => {}); // Focus backup
     }
-
+    
     document.addEventListener('keydown', (e) => {
         if (!$('#pinGate').classList.contains('hidden')) {
-            // For desktop, we primarily rely on the hidden input, but direct keys can act as backup
              const input = $('#pinInput');
-             if(document.activeElement !== input) {
-                 input.focus();
-             }
+             if(document.activeElement !== input) input.focus();
              if(e.key === 'Enter') processPin(input.value);
         }
     });
+    
+    // Focus Wrapper
+    const pinWrapper = document.querySelector('.pin-box-wrapper');
+    if (pinWrapper) {
+        pinWrapper.addEventListener('click', () => {
+            const input = document.getElementById('pinInput');
+            if(input) input.focus();
+        });
+    }
 
-    // Pin Settings
+    // Settings: Auto PIN
     const pinAutoTgl = $('#pinAutoToggleSet');
     if (pinAutoTgl) {
         pinAutoTgl.onchange = (e) => {
             autoPinVerify = e.target.checked;
-            localStorage.setItem('fmt_pin_auto', autoPinVerify);
+            localStorage.setItem(LS_PIN_AUTO, autoPinVerify);
             updatePinSettingsUI();
             showToast(autoPinVerify ? "অটো পিন ভেরিফাই চালু" : "ম্যানুয়াল পিন ভেরিফাই চালু");
         };
@@ -550,12 +726,16 @@ function setupEvents() {
         $('#pinViewToggle').onchange = toggleLockPinView;
     }
     
-    // Theme Toggles
-    if ($('#pinThemeToggle')) $('#pinThemeToggle').onclick = () => syncTheme(!document.body.classList.contains('dark-theme'));
-    $('#themeToggle').onclick = () => syncTheme(!document.body.classList.contains('dark-theme'));
-    if ($('#darkToggleSet')) $('#darkToggleSet').onchange = (e) => syncTheme(e.target.checked);
+    // Settings: Theme
+    const handleTheme = (isDark) => {
+        syncThemeUI(isDark);
+        localStorage.setItem(LS_THEME, isDark ? 'dark' : 'light');
+    };
+    if ($('#pinThemeToggle')) $('#pinThemeToggle').onclick = () => handleTheme(!document.body.classList.contains('dark-theme'));
+    $('#themeToggle').onclick = () => handleTheme(!document.body.classList.contains('dark-theme'));
+    if ($('#darkToggleSet')) $('#darkToggleSet').onchange = (e) => handleTheme(e.target.checked);
 
-    // 2. Navigation & Tabs
+    // 2. Navigation
     $$('.tabBtn, .m-nav-link').forEach(btn => {
         btn.onclick = () => {
             const target = btn.dataset.target;
@@ -568,49 +748,28 @@ function setupEvents() {
             $('#viewTitle').textContent = titleMap[target] || "ড্যাশবোর্ড";
             
             if (window.innerWidth < 768) $('#sidebar').classList.add('collapsed');
-            if (target === 'tabGraph') updateCharts([...allEntries]);
+            if (target === 'tabGraph') renderDashboard();
         };
     });
 
-    // 3. Filters & Data
+    // 3. Filters
     ['yearSelect', 'monthSelect', 'startDate', 'endDate'].forEach(id => {
         if ($('#' + id)) $('#' + id).onchange = renderDashboard;
     });
-
     $('#resetFilters').onclick = () => {
         ['yearSelect', 'monthSelect', 'startDate', 'endDate'].forEach(id => { if ($('#' + id)) $('#' + id).value = ""; });
         renderDashboard();
         showToast("ফিল্টার রিসেট করা হয়েছে");
     };
 
-// 🔄 4. Refresh Button Animation & Success Message
-const refreshBtn = document.getElementById('refreshDataBtn');
-
-if (refreshBtn) {
-    refreshBtn.addEventListener('click', async function() {
-        const icon = this.querySelector('i');
-        
-        if (icon) {
-            // ১. এনিমেশন শুরু (infinite লুপ দিলে ভালো হয় যতক্ষণ ডাটা লোড হচ্ছে)
-            icon.classList.add('spinning');
-            
-            try {
-                // ২. ডাটা ফেচ হওয়া পর্যন্ত অপেক্ষা করবে
-                await fetchData(); 
-
-                // ৩. ডাটা চলে আসার পর এনিমেশন ক্লাস রিমুভ করা
-                icon.classList.remove('spinning');
-                showToast("ডাটা রিফ্রেশ করা হয়েছে", "success");
-
-            } catch (error) {
-                icon.classList.remove('spinning');
-                showToast("ডাটা রিফ্রেশ করতে সমস্যা হয়েছে", "error");
-            }
-        }
-    });
-}
-
-
+    // 4. Refresh Button
+    const refreshBtn = document.getElementById('refreshDataBtn');
+    if (refreshBtn) {
+        refreshBtn.onclick = async function() {
+             await fetchData(); 
+             showToast("ডাটা রিফ্রেশ করা হয়েছে", "success");
+        };
+    }
 
     // 5. Notifications
     $('#addTimeBtn').onclick = () => {
@@ -618,7 +777,7 @@ if (refreshBtn) {
         if (!t) return showToast("সময় নির্বাচন করুন", "error");
         if (notifTimes.includes(t)) return showToast("এই সময়টি আগে থেকেই আছে", "error");
         notifTimes.push(t);
-        localStorage.setItem('fmt_notifs', JSON.stringify(notifTimes));
+        localStorage.setItem(LS_NOTIFS, JSON.stringify(notifTimes));
         renderReminders();
         showToast(`নতুন রিমাইন্ডার যোগ হয়েছে (${format12hr(t)})`, "success");
     };
@@ -628,7 +787,7 @@ if (refreshBtn) {
         nToggle.checked = notifEnabled;
         nToggle.onchange = (e) => {
             notifEnabled = e.target.checked;
-            localStorage.setItem('fmt_notif_status', notifEnabled);
+            localStorage.setItem(LS_NOTIF_STATUS, notifEnabled);
             showToast(notifEnabled ? "নোটিফিকেশন চালু" : "নোটিফিকেশন বন্ধ");
             if(notifEnabled) requestNotifPermission();
         };
@@ -639,6 +798,19 @@ if (refreshBtn) {
     $('#factoryResetBtn').onclick = showResetStep1;
     if($('#closeSidebar')) $('#closeSidebar').onclick = () => $('#sidebar').classList.add('collapsed');
     if($('#mainLogo')) $('#mainLogo').onclick = () => $('#sidebar').classList.toggle('collapsed');
+
+    // 7. Input Toggle
+    const toggle = $('#useCurrentTimeToggle');
+    const manualArea = $('#manualInputArea');
+    if (toggle && manualArea) {
+        toggle.onchange = (e) => {
+            manualArea.classList.toggle('hidden', e.target.checked);
+        };
+        // Set initial state on load
+        manualArea.classList.toggle('hidden', toggle.checked);
+    }
+    // 8. Submit
+    $('#saveEntry').onclick = submitEntry;
 }
 
 function renderReminders() {
@@ -651,25 +823,18 @@ function renderReminders() {
         </div>`).join('') : '<p class="empty-msg">কোন রিমাইন্ডার সেট করা নেই</p>';
 }
 
-function updateDateDisplay() {
-    const now = new Date();
-    const options = { day: 'numeric', month: 'long', year: 'numeric' };
-    if ($('#dateSub')) $('#dateSub').textContent = now.toLocaleDateString('bn-BD', options);
-}
 
 // 🚀 APP STARTUP
 document.addEventListener('DOMContentLoaded', () => {
+    // UI Load
     updatePinSettingsUI();
     setupEvents();
     renderReminders();
-    updateDateDisplay();
+    updateDateDisplay(); 
     
-    // Load Theme
-    if (localStorage.getItem('fmt_theme') === 'dark') syncTheme(true);
+    // Theme Load
+    if (localStorage.getItem(LS_THEME) === 'dark') syncThemeUI(true);
     
-    // Initial Focus for Desktop
-    if(window.innerWidth > 992) {
-        const input = $('#pinInput');
-        if(input) input.focus();
-    }
+    // Initial Focus
+    if(window.innerWidth > 992) $('#pinInput')?.focus();
 });
