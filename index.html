@@ -6,7 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="theme-color" content="#6366f1">
         <meta name="description" content="FMT Tracker Pro - Advanced Merit Tracking System">
-        <title>Udvash FMT Tracker (SSC-26) ~ TURZO [V14] </title>
+        <title>Udvash FMT Tracker (SSC-26) ~ TURZO [V14]</title>
         
         <!-- 🎨 FONTS & ICONS -->
         <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -182,16 +182,43 @@
                     <div class="tab-pane">
                         
                         <!-- 1. DATA ENTRY TAB -->
-                        <section id="tabInput" class="tab-item active">
-                            <div class="glass-card">
-                                <h3 style="margin-bottom: 15px;"><i class="fas fa-pen-to-square"></i> নতুন তথ্য যোগ করুন</h3>
-                                <div class="form-row">
-                                    <div class="input-container"><label>ব্রাঞ্চ মেরিট</label><input type="number" id="branchVal" placeholder="উদা: ৪২" inputmode="numeric" /></div>
-                                    <div class="input-container"><label>সেন্ট্রাল মেরিট</label><input type="number" id="centralVal" placeholder="উদা: ১২০০" inputmode="numeric" /></div>
-                                </div>
-                                <button id="saveEntry" class="btn primary-btn btn-block">সংরক্ষণ করুন</button>
-                            </div>
-                        </section>
+ <section id="tabInput" class="tab-item active">
+    <div class="glass-card">
+        <h3 style="margin-bottom: 15px;"><i class="fas fa-pen-to-square"></i> নতুন তথ্য যোগ করুন</h3>
+        
+        <div class="form-row">
+            <div class="input-container">
+                <label>ব্রাঞ্চ মেরিট</label>
+                <input type="number" id="branchVal" placeholder="উদা: ৪২" inputmode="numeric" />
+            </div>
+            <div class="input-container">
+                <label>সেন্ট্রাল মেরিট</label>
+                <input type="number" id="centralVal" placeholder="উদা: ১২০০" inputmode="numeric" />
+            </div>
+        </div>
+
+        <div class="input-toggle-wrapper">
+            <div class="toggle-label"><i class="far fa-calendar-check"></i> বর্তমান সময় ব্যবহার করুন</div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="useCurrentTimeToggle" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
+        <div id="manualInputArea" class="manual-date-inputs hidden">
+            <div class="input-container">
+                <label>তারিখ</label>
+                <input type="date" id="manualDate">
+            </div>
+            <div class="input-container">
+                <label>সময়</label>
+                <input type="time" id="manualTime">
+            </div>
+        </div>
+
+        <button id="saveEntry" class="btn primary-btn btn-block">তথ্য জমা দিন</button>
+    </div>
+</section>
 
                         <!-- 2. REPORT TABLE TAB -->
                         <section id="tabTable" class="tab-item hidden">
@@ -246,21 +273,22 @@
                               
                                     <div class="guide-item"><i class="fas fa-arrow-trend-down text-success"></i> গ্রাফের রেখা নিচের দিকে নামলে মেধাক্রমের উন্নতি (পজিশন এগিয়ে আসা) বোঝায়।</div>
                                     <div class="guide-item"><i class="fas fa-arrow-trend-up text-danger"></i> গ্রাফের রেখা উপরের দিকে উঠলে মেধাক্রমের অবনতি (পজিশন পিছিয়ে যাওয়া) বোঝায়।</div>
-                                    <div class="guide-item"><i class="fas fa-chart-line text-primary"></i> X অক্ষ বরাবর রিপোর্ট নম্বর এবং Y অক্ষ বরাবর আপনার মেধাক্রম (Rank) দেখানো হয়েছে।</div>
+                                    <div class="guide-item"><i class="fas fa-chart-line text-primary"></i> X অক্ষ বরাবর রিপোর্ট নম্বর এবং Y অক্ষ বরাবর আপনার মেধাক্রম (Rank) দেখানো হয়েছে।</div>                                    <div class="guide-item"><i class="fa-solid fa-r primary"></i> এখানে R দ্বারা  Report Number বা ক্রমিক নম্বরকে বোঋানে হয়েছে। উদা - R-7, R-16 </div>
                                 </div>
                             </div>
                         </section>
 
                         <!-- 4. SETTINGS TAB -->
                         <section id="tabPin" class="tab-item hidden">
-                            <div class="glass-card config-row-item">
-                                <div class="set-info"><h3><i class="fas fa-shield-halved"></i> অটো পিন ভেরিফাই</h3><p>৬ ডিজিট হলেই অটো চেক হবে</p></div>
-                                <label class="toggle-switch"><input type="checkbox" id="pinAutoToggleSet"><span class="toggle-slider"></span></label>
-                            </div>
-
+                          
                             <div class="glass-card config-row-item">
                                 <div class="set-info"><h3><i class="fas fa-moon"></i> ডার্ক মোড</h3><p>চোখের আরামের জন্য ব্যবহার করুন</p></div>
                                 <label class="toggle-switch"><input type="checkbox" id="darkToggleSet"><span class="toggle-slider"></span></label>
+                            </div>
+
+                            <div class="glass-card config-row-item">
+                                <div class="set-info"><h3><i class="fas fa-shield-halved"></i> অটো পিন ভেরিফাই</h3><p>৬ ডিজিট হলেই অটো চেক হবে</p></div>
+                                <label class="toggle-switch"><input type="checkbox" id="pinAutoToggleSet"><span class="toggle-slider"></span></label>
                             </div>
 
                             <div class="glass-card config-row-item">
