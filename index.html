@@ -7,6 +7,7 @@
         <meta name="theme-color" content="#6366f1">
         <meta name="description" content="FMT Tracker Pro - Advanced Merit Tracking System">
         <title>Udvash FMT Tracker (SSC-26) ~ TURZO [V14]</title>
+        <link rel="icon" type="image/x-icon" href="./images/favicon.ico">
         
         <!-- 🎨 FONTS & ICONS -->
         <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -96,7 +97,7 @@
             <aside id="sidebar" class="sidebar collapsed">
                 <div class="sidebar-header">
                     <div class="logo-wrapper" id="mainLogo">
-                        <i class="fas fa-bolt-lightning logo-icon"></i>
+                      <image src="./images/UFMT.png" class="logo-icon"></image>
                         <i class="fas fa-bars-staggered menu-icon"></i>
                     </div>
                     <button id="closeSidebar" class="close-trigger"><i class="fas fa-xmark"></i></button>
@@ -115,11 +116,10 @@
                 <!-- 🧢 HEADER -->
                 <header class="main-header">
                     <div class="header-inner">
-                        <div class="header-left">
-                            <i class="fas fa-bolt-lightning mobile-logo"></i>
+                        <div class="header-left">                    <image src="./images/UFMT-white-bg.jpg" class="logo-icon"></image>
                             <div class="page-info">
                                 <h2 id="viewTitle">ড্যাশবোর্ড</h2>
-                                <p id="dateSub">-- ডিসেম্বর, ২০২৪</p>
+                                <p id="dateSub"></p>
                             </div>
                         </div>
                         <div class="header-tools">
@@ -216,20 +216,52 @@
             </div>
         </div>
 
-        <button id="saveEntry" class="btn primary-btn btn-block">তথ্য জমা দিন</button>
+        <button id="saveEntry" class="btn saveEntry-btn primary-btn btn-block">তথ্য জমা দিন</button>
     </div>
 </section>
 
                         <!-- 2. REPORT TABLE TAB -->
                         <section id="tabTable" class="tab-item hidden">
+                              <div class="pagination-header">
+    <div class="p-view-toggle">
+        <button class="p-btn active" onclick="setPaginationMode('infinite')">ইনফিনিটি</button>
+        <button class="p-btn" onclick="setPaginationMode('pages')">পেজিনেশন</button>
+    </div>
+    
+    <div class="p-rows-selector">
+        <span>সারি:</span>
+        <select id="rowsPerPage" onchange="handleRowsChange(this.value)">
+            <option value="5">৫ টি</option>
+            <option value="10" selected>১০ টি</option>
+            <option value="15">১৫ টি</option>
+            <option value="20">২০ টি</option>
+            <option value="30">৩০ টি</option>
+        </select>
+    </div>
+</div>
+
                             <div class="glass-card no-padding table-responsive-container">
+
                                 <div class="table-holder">
                                     <table id="mainTable" class="custom-table">
                                         <thead><tr><th>ক্রমিক</th><th>তারিখ ও সময়</th><th>ব্রাঞ্চ</th><th>সেন্ট্রাল</th></tr></thead>
                                         <tbody id="tableRows"></tbody>
                                     </table>
                                 </div>
+
                             </div>
+                            
+  <div id="paginationFooter">
+    <div id="infiniteLoader" class="loader hidden">
+        <div class="spinner"></div>
+        <span>লোডিং...</span>
+    </div>
+
+    <div id="endMessage" class="end-msg hidden">সব তথ্য দেখানো শেষ</div>
+
+    <div id="paginationControls" class="pagination-bar hidden"></div>
+</div>
+
                         </section>
 
                         <!-- 3. ANALYSIS GRAPH TAB -->

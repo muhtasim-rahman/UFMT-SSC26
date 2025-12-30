@@ -811,6 +811,23 @@ function setupEvents() {
     }
     // 8. Submit
     $('#saveEntry').onclick = submitEntry;
+    
+    // 9. Infinite Scroll Listener (Fixed)
+    window.addEventListener('scroll', () => {
+        // ১. যদি 'Pages' মোড হয়, তাহলে কাজ করবে না
+        if (pMode !== 'infinite') return;
+        
+        // ২. যদি সব ডাটা লোড হয়ে গিয়ে থাকে ('End Message' দেখাচ্ছে), তাহলে কাজ করবে না
+        if (!$('#endMessage').classList.contains('hidden')) return;
+
+        // ৩. স্ক্রল পজিশন চেক (ফুটারের একটু আগে লোড শুরু হবে)
+        const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+        
+        if (scrollTop + clientHeight >= scrollHeight - 50) {
+            loadMoreInfinite();
+        }
+    });
+
 }
 
 function renderReminders() {
@@ -838,3 +855,182 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial Focus
     if(window.innerWidth > 992) $('#pinInput')?.focus();
 });
+
+
+// --- 1. PAGINATION STATE ---
+// global variables (মেইন ফাইলে ডিক্লেয়ার করা থাকলে let বাদ দিয়ে লিখুন)
+pMode = localStorage.getItem('pMode') || 'infinite'; 
+pRowsPerPage = parseInt(localStorage.getItem('pRowsPerPage')) || 10;
+pCurrentPage = 1;
+pIsLoading = false;
+pCurrentData = []; 
+pDisplayedCount = 0;
+
+// --- 2. INITIALIZE UI ON LOAD ---
+function initPaginationSettings() {
+    // সারি সংখ্যা ড্রপডাউন সেট করা
+    const rowSelector = document.querySelector('#rowsPerPage');
+    if (rowSelector) rowSelector.value = pRowsPerPage;
+    
+    // বাটন একটিভ স্টেট সেট করা
+    syncActiveButton();
+}
+document.addEventListener('DOMContentLoaded', initPaginationSettings);
+
+// একটিভ বাটন ভিজ্যুয়ালি আপডেট করার ফাংশন
+function syncActiveButton() {
+    const buttons = document.querySelectorAll('.p-btn');
+    buttons.forEach(btn => {
+        // বাটনের onclick অ্যাট্রিবিউটে আমাদের pMode আছে কিনা চেক করা
+        // উদাহরণ: 'setPaginationMode('infinite')' এ 'infinite' আছে কিনা
+        const btnOnClick = btn.getAttribute('onclick') || "";
+        
+        if (btnOnClick.includes(`'${pMode}'`)) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+// --- 3. UPDATED TABLE RENDERING ---
+function updateTable(data) {
+    pCurrentData = [...data].reverse();
+    
+    const endMsg = document.querySelector('#endMessage');
+    const infLoader = document.querySelector('#infiniteLoader');
+    const tableRows = document.querySelector('#tableRows');
+    const pagControls = document.querySelector('#paginationControls');
+
+    if (endMsg) endMsg.classList.add('hidden');
+    if (infLoader) infLoader.classList.add('hidden');
+
+    if (pMode === 'infinite') {
+        pDisplayedCount = 0;
+        if (tableRows) tableRows.innerHTML = ""; 
+        if (pagControls) pagControls.classList.add('hidden');
+        loadMoreInfinite(); 
+    } else {
+        if (pagControls) pagControls.classList.remove('hidden');
+        renderPage(1); 
+    }
+}
+
+// --- 4. INFINITE SCROLL LOGIC ---
+function loadMoreInfinite() {
+    if (pIsLoading || pDisplayedCount >= pCurrentData.length) return;
+
+    pIsLoading = true;
+    const loader = document.querySelector('#infiniteLoader');
+    if (loader) loader.classList.remove('hidden');
+
+    setTimeout(() => {
+        const nextBatch = pCurrentData.slice(pDisplayedCount, pDisplayedCount + pRowsPerPage);
+        renderRows(nextBatch, true); 
+        
+        pDisplayedCount += nextBatch.length;
+        pIsLoading = false;
+        
+        if (loader) loader.classList.add('hidden');
+
+        const endMsg = document.querySelector('#endMessage');
+        if (pDisplayedCount >= pCurrentData.length && pCurrentData.length > 0) {
+            if (endMsg) endMsg.classList.remove('hidden');
+        }
+    }, 500); 
+}
+
+// --- 5. PAGINATION (PAGES) LOGIC ---
+function renderPage(page) {
+    pCurrentPage = page;
+    const start = (page - 1) * pRowsPerPage;
+    const pageData = pCurrentData.slice(start, start + pRowsPerPage);
+    
+    const tableRows = document.querySelector('#tableRows');
+    if (tableRows) tableRows.innerHTML = ""; 
+    renderRows(pageData, false);
+    renderPaginationControls();
+
+    const endMsg = document.querySelector('#endMessage');
+    const totalPages = Math.ceil(pCurrentData.length / pRowsPerPage);
+    if (endMsg) {
+        if (page === totalPages && pCurrentData.length > 0) {
+            endMsg.classList.remove('hidden');
+        } else {
+            endMsg.classList.add('hidden');
+        }
+    }
+}
+
+// --- 6. CONTROLS & LOCAL STORAGE ---
+function setPaginationMode(mode) {
+    if (pMode === mode) return;
+    
+    pMode = mode;
+    localStorage.setItem('pMode', mode); 
+    
+    syncActiveButton(); 
+
+    // ডাটা রি-রেন্ডার করার আগে একবার রিভার্স করে মেইন অর্ডারে আনা
+    const originalOrder = [...pCurrentData].reverse();
+    updateTable(originalOrder); 
+}
+
+function handleRowsChange(val) {
+    pRowsPerPage = parseInt(val);
+    localStorage.setItem('pRowsPerPage', pRowsPerPage); 
+    
+    const originalOrder = [...pCurrentData].reverse();
+    updateTable(originalOrder);
+}
+
+// --- 7. COMMON ROW RENDERER ---
+function renderRows(data, append) {
+    const tbody = document.querySelector('#tableRows');
+    if (!tbody) return;
+
+    if (!data.length && !append) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
+        return;
+    }
+
+    const html = data.map(d => `
+        <tr class="fade-in">
+            <td><span class="sn-badge">${d.serial}</span></td>
+            <td>
+                <div class="table-date-cell">
+                    <span>${d.date}</span>
+                    <div class="table-time-row">
+                        <i class="far fa-clock"></i><span class="time-text">${d.time || 'N/A'}</span>
+                    </div>
+                </div>
+            </td>
+            <td class="fw-800">${d.branch}</td>
+            <td class="fw-800">${d.central}</td>
+        </tr>`).join('');
+
+    if (append) tbody.insertAdjacentHTML('beforeend', html);
+    else tbody.innerHTML = html;
+}
+
+// --- 8. PAGINATION CONTROLS GENERATOR ---
+function renderPaginationControls() {
+    const container = document.querySelector('#paginationControls');
+    if (!container) return;
+
+    const totalPages = Math.ceil(pCurrentData.length / pRowsPerPage);
+    if (totalPages <= 1) { container.innerHTML = ""; return; }
+
+    let html = `<button class="page-num-btn" onclick="renderPage(${pCurrentPage - 1})" ${pCurrentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
+
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= pCurrentPage - 1 && i <= pCurrentPage + 1)) {
+            html += `<button class="page-num-btn ${i === pCurrentPage ? 'active' : ''}" onclick="renderPage(${i})">${i}</button>`;
+        } else if ((i === pCurrentPage - 2 && pCurrentPage > 3) || (i === pCurrentPage + 2 && pCurrentPage < totalPages - 2)) {
+            if (!html.endsWith('...')) html += `<span class="pagination-dots">...</span>`;
+        }
+    }
+
+    html += `<button class="page-num-btn" onclick="renderPage(${pCurrentPage + 1})" ${pCurrentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+    container.innerHTML = html;
+}
