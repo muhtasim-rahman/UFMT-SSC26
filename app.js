@@ -1,50 +1,35 @@
-/**
- * 📊 FMT TRACKER PRO - FINAL STABLE VERSION
- * ---------------------------------------------------
- * Storage: Settings (Local Storage), Data (Google Sheet)
- * Features: Offline Settings, Online Data, Chart, Notifications
- * FIXES: 
- * 1. Data processing logic restored for robust data fetching.
- * 2. Custom Date/Time input logic verified and cleared on submit.
- * 3. Header date format updated to "Date Month, Year (Day)".
- * 4. CRITICAL FIX: Ensure 'time' payload is always sent in HH:mm (24hr) format
- * to prevent Google Apps Script from defaulting to current time.
- */
+/* ==========================
+🌐 Section: 01 Configuration
+   - API, Utils & Encryption
+========================== */
 
-// 🌐 1. CONFIGURATION
-const RAW_URL = "Y2V4ZS9tMjMtbV82V0otYmJrVzgxblNtUDljOV9HNHAtVnU0ZEV5VGFjZzMzV0ZiY1ZEVHhZaGo3MWRwaGQ2X3RiV3FKbnpiY3lmS0Evcy9zb3JjYW0vbW9jLmVsZ29vZy50cGlyY3MvLzpzcHR0aA=="; 
+// ---- ( Configuration ) ----
+const RAW_URL = "Y2V4ZS9tMjMtbV82V0otYmJrVzgxblNtUDljOV9HNHAtVnU0ZEV5VGFjZzMzV0ZiY1ZEVHhZaGo3MWRwaGQ2X3RiV3FKbnpiY3lmS0Evcy9zb3JjYW0vbW9jLmVsZ29vZy50cGlyY3MvLzpzcHR0aA==";
 
-// 🛠️ DOM UTILITIES
+// ---- ( DOM Helpers ) ----
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 
-// --- 📦 GLOBAL STATE MANAGEMENT ---
-let allEntries = [];
-let branchChart = null;
-let centralChart = null;
-
-// Local Storage Keys
-const LS_PIN = 'fmt_pin';
-const LS_THEME = 'fmt_theme';
-const LS_NOTIFS = 'fmt_notifs';
-const LS_NOTIF_STATUS = 'fmt_notif_status';
-const LS_PIN_AUTO = 'fmt_pin_auto';
-
-// State Variables (Loaded from Local Storage)
-let notifTimes = JSON.parse(localStorage.getItem(LS_NOTIFS)) || [];
-let notifEnabled = JSON.parse(localStorage.getItem(LS_NOTIF_STATUS)) === true;
-let autoPinVerify = JSON.parse(localStorage.getItem(LS_PIN_AUTO)) !== false; // Default true
-let lastCheckedMinute = -1;
-
-// Encryption Helper
-function decrypt(text){ return atob(text).split('').reverse().join(''); }
+// ---- ( Encryption & Formatting ) ----
+function decrypt(text) { return atob(text).split('').reverse().join(''); }
 const getApiUrl = () => RAW_URL.includes("http") ? RAW_URL : decrypt(RAW_URL);
 
-// PIN Helper (Local Priority -> Default "000000")
-const getSavedPin = () => localStorage.getItem(LS_PIN) || "000000"; 
+function format12hr(time24) {
+    if (!time24) return "N/A";
+    let [hrs, mins] = time24.split(':');
+    hrs = parseInt(hrs);
+    const period = hrs >= 12 ? 'PM' : 'AM';
+    hrs = hrs % 12 || 12;
+    mins = String(mins).padStart(2, '0');
+    return `${hrs}:${mins} ${period}`;
+}
 
-
-// 📣 2. NOTIFICATION & TOASTS 📣
+function updateDateDisplay() {
+    const now = new Date();
+    const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+    const dayOptions = { weekday: 'long' };
+    if ($('#dateSub')) $('#dateSub').textContent = `${now.toLocaleDateString('bn-BD', dateOptions)} (${now.toLocaleDateString('bn-BD', dayOptions)})`;
+}
 
 function showToast(msg, type = "default") {
     const t = $('#statusToast');
@@ -54,39 +39,54 @@ function showToast(msg, type = "default") {
     if (type === "success") t.classList.add('success');
     else if (type === "error") t.classList.add('error');
     else t.classList.add('default');
-    
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// Helper to convert 24hr time (HH:mm) for display purposes only (notifications/modals)
-function format12hr(time24) {
-    if (!time24) return "N/A";
-    let [hrs, mins] = time24.split(':');
-    hrs = parseInt(hrs);
-    const period = hrs >= 12 ? 'PM' : 'AM';
-    hrs = hrs % 12 || 12; 
-    mins = String(mins).padStart(2, '0');
-    return `${hrs}:${mins} ${period}`;
-}
 
-// FIX for Extra 2: Date Header Format
-function updateDateDisplay() {
-    const now = new Date();
-    const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-    const dayOptions = { weekday: 'long' };
-    
-    const datePart = now.toLocaleDateString('bn-BD', dateOptions); 
-    const dayPart = now.toLocaleDateString('bn-BD', dayOptions); 
-    
-    const dateStr = `${datePart} (${dayPart})`;
+/* ==========================
+📦 Section: 02 Global State
+   - Storage Keys & Variables
+========================== */
 
-    if ($('#dateSub')) $('#dateSub').textContent = dateStr;
-}
+// ---- ( State Variables ) ----
+let allEntries = [];
+let branchChart = null;
+let centralChart = null;
+let deferredPrompt; 
+let isOfflineBannerDismissed = false;
+
+// ---- ( Local Storage Keys ) ----
+const LS_PIN = 'fmt_pin';
+const LS_THEME = 'fmt_theme';
+const LS_NOTIFS = 'fmt_notifs';
+const LS_NOTIF_STATUS = 'fmt_notif_status';
+const LS_PIN_AUTO = 'fmt_pin_auto';
+const LS_DATA_CACHE = "fmt_data_cache"; 
+
+// ---- ( User Preferences ) ----
+let notifTimes = JSON.parse(localStorage.getItem(LS_NOTIFS)) || [];
+let notifEnabled = JSON.parse(localStorage.getItem(LS_NOTIF_STATUS)) === true;
+let autoPinVerify = JSON.parse(localStorage.getItem(LS_PIN_AUTO)) !== false; 
+let lastCheckedMinute = -1;
+
+const getSavedPin = () => localStorage.getItem(LS_PIN) || "000000";
+
+// ---- ( Pagination State ) ----
+let pMode = localStorage.getItem("pMode") || "infinite";
+let pRowsPerPage = parseInt(localStorage.getItem("pRowsPerPage")) || 10;
+let pCurrentPage = 1;
+let pIsLoading = false;
+let pCurrentData = [];
+let pDisplayedCount = 0;
 
 
-// 🔐 3. SECURITY & PIN MANAGEMENT 🔐
+/* ==========================
+🔐 Section: 03 Security System
+   - PIN Logic & Animations
+========================== */
 
-function handlePinInput(val) {
+// ---- ( UI Render Logic ) ----
+function renderPinDots(val) {
     const dots = $$('.v-dot');
     const isVisible = $('#pinViewToggle') ? $('#pinViewToggle').checked : false;
     
@@ -101,27 +101,6 @@ function handlePinInput(val) {
         }
         dot.classList.toggle('current', i === val.length); 
     });
-
-    if (autoPinVerify && val.length === 6) {
-        processPin(val);
-    }
-}
-
-function handleKeyPress(key) {
-    const input = $('#pinInput');
-    let currentVal = input.value;
-
-    if (key === 'BACK' || key === 'Backspace') {
-        input.value = currentVal.slice(0, -1);
-    } else if (key === 'ENTER' || key === 'Enter') {
-        processPin(currentVal);
-        return;
-    } else if (/^[0-9]$/.test(key)) {
-        if (currentVal.length < 6) {
-            input.value = currentVal + key;
-        }
-    }
-    handlePinInput(input.value);
 }
 
 function triggerParticles(container) {
@@ -148,6 +127,33 @@ function triggerParticles(container) {
     }
 }
 
+// ---- ( Input Handlers ) ----
+function handlePinInput(val) {
+    renderPinDots(val);
+    if (autoPinVerify && val.length === 6) {
+        setTimeout(() => processPin(val), 50); 
+    }
+}
+
+function handleKeyPress(key) {
+    const input = $('#pinInput');
+    let currentVal = input.value;
+
+    if (key === 'BACK' || key === 'Backspace') {
+        currentVal = currentVal.slice(0, -1);
+    } else if (key === 'ENTER' || key === 'Enter') {
+        processPin(currentVal);
+        return;
+    } else if (/^[0-9]$/.test(key)) {
+        if (currentVal.length < 6) {
+            currentVal += key;
+        }
+    }
+    input.value = currentVal;
+    handlePinInput(currentVal);
+}
+
+// ---- ( Verification Logic ) ----
 function processPin(val) {
     const lockBtn = document.querySelector('.btn-lock');
     if (val.length < 6) {
@@ -165,7 +171,7 @@ function processPin(val) {
             $('#app').classList.remove('hidden');
             fetchData(); 
             requestNotifPermission();
-        }, 1200); 
+        }, 1000); 
     } else {
         showToast("ভুল পিন! আবার চেষ্টা করুন", "error");
         lockBtn.classList.add('error-shake');
@@ -173,15 +179,10 @@ function processPin(val) {
         setTimeout(() => {
             lockBtn.classList.remove('error-shake');
             $('#pinInput').value = "";
-            handlePinInput("");
+            renderPinDots("");
         }, 500); 
     }
 }
-
-window.toggleLockPinView = () => {
-    const input = $('#pinInput');
-    handlePinInput(input.value); 
-};
 
 function changePin() {
     const oldPin = $('#oldPinSet').value;
@@ -197,57 +198,83 @@ function changePin() {
     $('#oldPinSet').value = ""; $('#newPinSet').value = ""; $('#confirmPinSet').value = "";
 }
 
+window.toggleLockPinView = () => renderPinDots($('#pinInput').value);
 
-// 📡 4. DATA FETCHING & SUBMITTING 📡
 
+/* ==========================
+📡 Section: 04 Data Handling
+   - Fetching, Caching & Offline
+========================== */
+
+// ---- ( Smart Data Fetching ) ----
 async function fetchData() {
-    try {
-        const refreshIcon = $('#refreshDataBtn i');
-        if(refreshIcon) refreshIcon.classList.add('spinning'); 
+    const offlineAlert = $("#offlineAlert");
+    const refreshIcon = $('#refreshDataBtn i');
+    
+    if(refreshIcon) refreshIcon.classList.add('spinning'); 
 
+    // Step 1: Load from Cache Immediately
+    const cachedData = localStorage.getItem(LS_DATA_CACHE);
+    if (cachedData) {
+        allEntries = JSON.parse(cachedData);
+        renderDashboard();
+    }
+
+    try {
+        // Step 2: Try Network Request
         const res = await fetch(getApiUrl());
         if (!res.ok) throw new Error("Network response was not ok");
         
         const rawData = await res.json();
-
-        // Handle simple array response or wrapped response
         const dataArray = Array.isArray(rawData) ? rawData : (rawData.results || []);
 
-        // Process Data: Filter, convert to number, and assign a chronological serial if missing
+        // Step 3: Process & Sort Data
         allEntries = dataArray
-            .filter(d => d.date) // Filter out rows without a date
+            .filter(d => d.date)
             .map((entry, index) => ({
                 ...entry,
-                // Ensure serial exists and is a number. Use index+1 as fallback chronological serial.
                 serial: Number(entry.serial) || (index + 1), 
                 branch: Number(entry.branch),
                 central: Number(entry.central)
             }))
-            // Sort by Serial/Date (Oldest First) for chart rendering (chronological)
             .sort((a, b) => a.serial - b.serial); 
             
-        // Populate Year Filter Dynamically
-        const years = [...new Set(allEntries.map(d => String(d.date).split('-')[0]))].filter(y => y && y.length === 4);
-        const yearSel = $('#yearSelect');
-        if (yearSel) {
-             const currentVal = yearSel.value;
-             yearSel.innerHTML = '<option value="">সব বছর</option>' + 
-                 years.sort().map(y => `<option value="${y}" ${y === currentVal ? 'selected' : ''}>${y}</option>`).join('');
-        }
-        
+        // Step 4: Update Cache & UI
+        localStorage.setItem(LS_DATA_CACHE, JSON.stringify(allEntries));
         renderDashboard();
         
-        if(refreshIcon) refreshIcon.classList.remove('spinning');
+        // Step 5: Update Dropdowns & Hide Banner
+        updateYearDropdown();
+        if (offlineAlert) offlineAlert.classList.add("hidden");
 
     } catch (e) {
-        console.error(e);
-        $('#refreshDataBtn i')?.classList.remove('spinning');
-        showToast("ডাটা লোড করতে সমস্যা হয়েছে", "error");
+        console.log("Offline Mode Active:", e);
+        // Show offline banner only if not dismissed
+        if (!isOfflineBannerDismissed) {
+            offlineAlert?.classList.remove("hidden");
+        }
+    } finally {
+        if(refreshIcon) refreshIcon.classList.remove('spinning');
     }
 }
 
-// ** DATA SUBMISSION LOGIC (CRITICAL FIX APPLIED HERE) **
+// ---- ( Helpers ) ----
+function updateYearDropdown() {
+    const years = [...new Set(allEntries.map(d => String(d.date).split('-')[0]))].filter(y => y && y.length === 4);
+    const yearSel = $('#yearSelect');
+    if (yearSel) {
+         const currentVal = yearSel.value;
+         yearSel.innerHTML = '<option value="">সব বছর</option>' + 
+             years.sort().map(y => `<option value="${y}" ${y === currentVal ? 'selected' : ''}>${y}</option>`).join('');
+    }
+}
+
+// ---- ( Data Submission ) ----
 async function submitEntry() {
+    if (!navigator.onLine) {
+        return showToast("ইন্টারনেট সংযোগ নেই! অফলাইনে এন্ট্রি দেওয়া যাবে না।", "error");
+    }
+
     const branch = $('#branchVal').value;
     const central = $('#centralVal').value;
     const useCurrent = $('#useCurrentTimeToggle').checked;
@@ -257,22 +284,13 @@ async function submitEntry() {
     let datePayload, timePayload;
 
     if (useCurrent) {
-        // Auto Date/Time (Current Time)
         const now = new Date();
-        // Date in YYYY-MM-DD format
         datePayload = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-        
-        // FIX: Time in HH:mm (24hr) format
         timePayload = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-
     } else {
-        // Manual Date/Time Logic
-        datePayload = $('#manualDate').value; // YYYY-MM-DD
-        timePayload = $('#manualTime').value; // HH:mm (24h)
-        
+        datePayload = $('#manualDate').value; 
+        timePayload = $('#manualTime').value; 
         if (!datePayload || !timePayload) return showToast("তারিখ ও সময় নির্বাচন করুন", "error");
-        
-        // FIX: No conversion needed, sending raw 24hr time (timePayload)
     }
 
     const payload = {
@@ -283,7 +301,6 @@ async function submitEntry() {
         time: timePayload
     };
 
-    // UI Loading State
     const submitBtn = $('#saveEntry');
     const refreshIcon = $('#refreshDataBtn i');
     const originalBtnText = submitBtn.textContent;
@@ -298,15 +315,13 @@ async function submitEntry() {
             body: JSON.stringify(payload)
         });
 
-        // FIX for Extra 1: Clear ALL Inputs on Success
         $('#branchVal').value = "";
         $('#centralVal').value = "";
-        if(!useCurrent) { // Only clear date/time if custom was used
+        if(!useCurrent) { 
             $('#manualDate').value = ""; 
             $('#manualTime').value = "";
         }
         
-        // Refresh Data
         await fetchData();
         showToast("তথ্য সফলভাবে জমা হয়েছে!", "success");
 
@@ -321,12 +336,14 @@ async function submitEntry() {
 }
 
 
-// 📊 5. DASHBOARD & CHARTS 📊
+/* ==========================
+📊 Section: 05 Dashboard & Charts
+   - Analysis, Summary & Graphs
+========================== */
 
+// ---- ( Dashboard Renderer ) ----
 function renderDashboard() {
     let data = [...allEntries];
-    
-    // Apply Filters
     const year = $('#yearSelect')?.value;
     const month = $('#monthSelect')?.value;
     const start = $('#startDate')?.value;
@@ -340,31 +357,6 @@ function renderDashboard() {
     updateTable(data);
     updateSummary(data);
     updateCharts(data);
-}
-
-function updateTable(data) {
-    const tbody = $('#tableRows');
-    if (!tbody) return;
-    tbody.innerHTML = data.length ? "" : '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
-
-    // Show latest on top for table (Reversing chronologically-sorted data)
-    [...data].reverse().forEach((d) => {
-        // Since d.time comes from the sheet, it is displayed as is (e.g. 10:20)
-        tbody.innerHTML += `
-            <tr>
-                <td><span class="sn-badge">${d.serial}</span></td>
-                <td>
-                    <div class="table-date-cell">
-                        <span>${d.date}</span>
-                        <div class="table-time-row">
-                            <i class="far fa-clock"></i><span class="time-text">${d.time || 'N/A'}</span>
-                        </div>
-                    </div>
-                </td>
-                <td class="fw-800">${d.branch}</td>
-                <td class="fw-800">${d.central}</td>
-            </tr>`;
-    });
 }
 
 function updateSummary(data) {
@@ -389,155 +381,89 @@ function updateSummary(data) {
     setVal('#sumTotal', data.length);
 }
 
-// ⚙️ HELPER FUNCTION: Formats YYYY-MM-DD HH:mm to DD/MM/YY (h:mm AM/PM)
-function formatDateTimeForTooltip(dateStr, timeStr) {
-    // Clean potential single quote from Apps Script fix
-    const cleanTimeStr = timeStr.replace(/^'/, ''); 
-
-    // Date Format: DD/MM/YY
-    if (!dateStr || dateStr.length < 10) {
-        // If date is missing or invalid, return time only
-        return cleanTimeStr; 
-    }
-    const parts = dateStr.split('-'); // Assumes YYYY-MM-DD format
-    const year = parts[0].substring(2); // Last 2 digits of year
-    const month = parts[1];
-    const day = parts[2];
-    const formattedDate = `${day}/${month}/${year}`; 
-
-    // Time Format: 12-hour AM/PM
-    if (!cleanTimeStr) {
-        return formattedDate;
-    }
-    const [hours, minutes] = cleanTimeStr.split(':').map(Number);
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours % 12 || 12; // Convert 0 to 12
-    const formattedTime = `${hour12}:${String(minutes).padStart(2, '0')} ${ampm}`;
-
-    return `${formattedDate} (${formattedTime})`;
-}
-
-// 📈 CHART LOGIC
+// ---- ( Chart.js Implementation ) ----
 function updateCharts(data) {
     if (!window.Chart) return;
-    
-    // Chart Data must be Oldest First for chronological X-axis
     const chartData = [...data]; 
-    const labels = chartData.map(d => `R-${d.serial}`); // Serial for X-axis label
+    const labels = chartData.map(d => `R-${d.serial}`);
 
-    // Base Chart Options (shared by both)
-    const baseChartOptions = {
-        responsive: true, 
-        maintainAspectRatio: false, 
-        layout: { padding: { top: 10, bottom: 10, left: 10, right: 10 } },
-        interaction: { mode: 'index', intersect: false },
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: 10 },
+        interaction: { mode: "index", intersect: false },
         scales: {
-            y: {
-                grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
-                ticks: { font: { family: 'Inter', size: 11 } }
-            },
-            x: { 
-                grid: { display: false },
-                ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0, font: { family: 'Inter', size: 10 } }
-            }
+            y: { grid: { color: "rgba(0,0,0,0.05)", drawBorder: false }, ticks: { font: { family: "Inter", size: 11 } } },
+            x: { grid: { display: false }, ticks: { autoSkip: true, maxTicksLimit: 12, font: { family: "Inter", size: 10 } } }
         },
         plugins: {
             legend: { display: false },
             tooltip: {
-                // Aesthetics & Size Fixes
-                backgroundColor: 'rgba(30, 41, 59, 0.98)', 
-                titleColor: '#f8fafc',                    
-                bodyColor: '#cbd5e1',                     
-                borderWidth: 2,                             
-                cornerRadius: 6,                            
-                padding: 10,                                
-                displayColors: false,                       // ⭐ FIX 1: Hides the color box
-                caretSize: 5,                               
-                caretPadding: 5,
-                
-                titleFont: {
-                    family: 'Inter',
-                    size: 13, // Slightly increased size for the main title
-                    weight: '600' // Bold title (Serial Number)
-                },
-                bodyFont: {
-                    family: 'Inter',
-                    size: 12 // Slightly smaller size for date/time and merit
-                },
-
-                // Layout Control (Callbacks)
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                titleColor: '#e2e8f0',
+                bodyColor: '#cbd5e1',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.1)',
+                padding: 12,
+                cornerRadius: 8,
+                displayColors: false,
+                titleFont: { family: 'Hind Siliguri', size: 14, weight: '600' },
+                bodyFont: { family: 'Hind Siliguri', size: 13 },
                 callbacks: {
-                    // ⭐ FIX 3.1: First line - Only Serial Number (Title)
-                    title: (ctx) => {
-                        return `সিরিয়াল নম্বর: ${ctx[0].label.replace('R-', '')}`;
-                    },
-                    
-                    // Body Lines
-                    beforeBody: (ctx) => {
-                        const serial = ctx[0].label.replace('R-', '');
-                        const entry = chartData.find(d => String(d.serial) === serial);
-                        
-                        if (entry && entry.date) {
-                            // ⭐ FIX 3.2 & 2: Second line - Date and Time (DD/MM/YY (h:mm AM/PM))
-                            const formattedDateTime = formatDateTimeForTooltip(entry.date, entry.time);
-                            // Returns an array of strings, which Chart.js displays before the main label
-                            return [formattedDateTime];
-                        }
-                        return [];
-                    },
-
-                    // ⭐ FIX 3.3: Third line - Branch or Central Merit (Label)
-                    label: (ctx) => {
-                        const datasetLabel = ctx.dataset.label; // 'ব্রাঞ্চ মেরিট' or 'সেন্ট্রাল মেরিট'
-                        return `${datasetLabel}: ${ctx.raw}`;
-                    },
+                    title: (ctx) => `রিপোর্ট নং: ${ctx[0].label.replace("R-", "")}`,
+                    label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}`,
                     afterBody: (ctx) => {
-                        return []; // Clear any residual after body text
+                        const serial = ctx[0].label.replace("R-", "");
+                        const entry = chartData.find(d => String(d.serial) === serial);
+                        if(entry && entry.date) {
+                             const dObj = new Date(entry.date);
+                             const dateStr = dObj.toLocaleDateString('bn-BD', {day:'numeric', month:'long', year:'numeric'});
+                             const timeStr = format12hr(entry.time);
+                             return `${dateStr} (${timeStr})`;
+                        }
+                        return "";
                     }
                 }
             }
         }
     };
-    
-    // Custom function to create options with dynamic border color
-    const getChartOptions = (color) => {
-        const options = JSON.parse(JSON.stringify(baseChartOptions));
-        options.plugins.tooltip.borderColor = color;
-        return options;
-    };
-    
-    // --- Render Branch Chart ---
+
     if (branchChart) branchChart.destroy();
-    const branchColor = '#6366f1';
-    branchChart = new Chart($('#branchChart'), {
-        type: 'line',
-        data: { labels, datasets: [{ 
-            label: 'ব্রাঞ্চ মেরিট', 
-            data: chartData.map(d => d.branch), 
-            borderColor: branchColor, borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6,
-            tension: 0.2, fill: true, backgroundColor: 'rgba(99, 102, 241, 0.1)'
-        }] },
-        options: getChartOptions(branchColor)
+    branchChart = new Chart($("#branchChart"), {
+        type: "line",
+        data: {
+            labels,
+            datasets: [{
+                label: "ব্রাঞ্চ মেরিট",
+                data: chartData.map(d => d.branch),
+                borderColor: "#6366f1", borderWidth: 2, pointRadius: 3, tension: 0.2, fill: true, backgroundColor: "rgba(99, 102, 241, 0.1)"
+            }]
+        },
+        options: commonOptions
     });
 
-    // --- Render Central Chart ---
     if (centralChart) centralChart.destroy();
-    const centralColor = '#10b981';
-    centralChart = new Chart($('#centralChart'), {
-        type: 'line',
-        data: { labels, datasets: [{ 
-            label: 'সেন্ট্রাল মেরিট',
-            data: chartData.map(d => d.central), 
-            borderColor: centralColor, borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6,
-            tension: 0.2, fill: true, backgroundColor: 'rgba(16, 185, 129, 0.1)'
-        }] },
-        options: getChartOptions(centralColor)
+    centralChart = new Chart($("#centralChart"), {
+        type: "line",
+        data: {
+            labels,
+            datasets: [{
+                label: "সেন্ট্রাল মেরিট",
+                data: chartData.map(d => d.central),
+                borderColor: "#10b981", borderWidth: 2, pointRadius: 3, tension: 0.2, fill: true, backgroundColor: "rgba(16, 185, 129, 0.1)"
+            }]
+        },
+        options: commonOptions
     });
 }
 
 
-// 🧩 6. MODALS & POPUPS (DESIGN RESTORED) 🧩
+/* =========================
+🛠️ Section: 06 UI Interactions
+    - Modals, Pagination, Logic
+========================= */
 
+// ---- ( Modals ) ----
 function openModal(html) {
     const modal = $('#standardModal');
     const content = $('#modalContent');
@@ -546,9 +472,10 @@ function openModal(html) {
     modal.classList.remove('hidden');
 }
 
-function closeModal() { $('#standardModal').classList.add('hidden'); }
+function closeModal() { 
+    $('#standardModal').classList.add('hidden'); 
+}
 
-// Step 1: Warning (Restored 3 bullet points)
 function showResetStep1() {
     openModal(`
         <div class="reset-top-banner">
@@ -559,7 +486,6 @@ function showResetStep1() {
             <ul class="warning-points">
                 <li>অ্যাপের সকল সেটিংস ও পারমিশন স্থায়ীভাবে মুছে যাবে। (সীটে সেভ করা ডাটা মুছে যাবে না)</li>
                 <li>আপনার সিকিউরিটি পিন রিসেট হয়ে ডিফল্ট পিন সেট হয়ে যাবে।</li>
-                <li>এই প্রক্রিয়াটি সম্পন্ন হলে আর পূর্বাবস্থায় ফিরিয়ে আনা যাবে না।</li>
             </ul>
             <div class="divider-line"></div>
             <div class="input-reset-wrapper">
@@ -574,7 +500,6 @@ function showResetStep1() {
     `);
 }
 
-// Step 2: PIN Verification
 function showResetStep2() {
     if ($('#confirmText')?.value !== 'RESET') return showToast("সঠিকভাবে RESET শব্দটি লিখুন", "error");
     openModal(`
@@ -599,7 +524,6 @@ function showResetStep2() {
 
 function finalReset() {
     if ($('#confirmPin')?.value === getSavedPin()) {
-        // Clear Local Storage Only
         localStorage.clear();
         showToast("সিস্টেম রিসেট করা হয়েছে", "success");
         setTimeout(() => location.reload(), 1500);
@@ -608,10 +532,171 @@ function finalReset() {
     }
 }
 
-// Reminder Deletion Confirmation (Restored Design)
+// ---- ( Pagination & Table Logic ) ----
+function updateTable(data) {
+    pCurrentData = [...data].reverse();
+    
+    const endMsg = $("#endMessage");
+    const infLoader = $("#infiniteLoader");
+    const pagControls = $("#paginationControls");
+    const tbody = $("#tableRows");
+
+    if (endMsg) endMsg.classList.add("hidden");
+    if (infLoader) infLoader.classList.add("hidden");
+
+    if (pMode === "infinite") {
+        pDisplayedCount = 0;
+        if (tbody) tbody.innerHTML = "";
+        if (pagControls) pagControls.classList.add("hidden");
+        loadMoreInfinite();
+    } else {
+        if (pagControls) pagControls.classList.remove("hidden");
+        renderPage(1);
+    }
+}
+
+function loadMoreInfinite() {
+    if (pIsLoading || pDisplayedCount >= pCurrentData.length) return;
+    pIsLoading = true;
+    const loader = $("#infiniteLoader");
+    if (loader) loader.classList.remove("hidden");
+
+    setTimeout(() => {
+        const nextBatch = pCurrentData.slice(pDisplayedCount, pDisplayedCount + pRowsPerPage);
+        renderRows(nextBatch, true);
+        pDisplayedCount += nextBatch.length;
+        pIsLoading = false;
+        
+        if (loader) loader.classList.add("hidden");
+        if (pDisplayedCount >= pCurrentData.length && pCurrentData.length > 0) {
+            $("#endMessage")?.classList.remove("hidden");
+        }
+    }, 500);
+}
+
+function renderPage(page) {
+    pCurrentPage = page;
+    const start = (page - 1) * pRowsPerPage;
+    const pageData = pCurrentData.slice(start, start + pRowsPerPage);
+    $("#tableRows").innerHTML = "";
+    renderRows(pageData, false);
+    renderPaginationControls();
+}
+
+function renderRows(data, append) {
+    const tbody = $("#tableRows");
+    if (!tbody) return;
+    if (!data.length && !append) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
+        return;
+    }
+    const html = data.map(d => `
+        <tr class="fade-in">
+            <td><span class="sn-badge">${d.serial}</span></td>
+            <td>
+                <div class="table-date-cell">
+                    <span>${d.date}</span>
+                    <div class="table-time-row">
+                        <i class="far fa-clock"></i><span class="time-text">${format12hr(d.time)}</span>
+                    </div>
+                </div>
+            </td>
+            <td class="fw-800">${d.branch}</td>
+            <td class="fw-800">${d.central}</td>
+        </tr>`).join("");
+    append ? tbody.insertAdjacentHTML("beforeend", html) : tbody.innerHTML = html;
+}
+
+function renderPaginationControls() {
+    const container = $("#paginationControls");
+    if (!container) return;
+    const totalPages = Math.ceil(pCurrentData.length / pRowsPerPage);
+    if (totalPages <= 1) { container.innerHTML = ""; return; }
+
+    let html = `<button class="page-num-btn" onclick="renderPage(${pCurrentPage - 1})" ${pCurrentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+         if (i === 1 || i === totalPages || (i >= pCurrentPage - 1 && i <= pCurrentPage + 1)) {
+            html += `<button class="page-num-btn ${i === pCurrentPage ? 'active' : ''}" onclick="renderPage(${i})">${i}</button>`;
+        } else if ((i === pCurrentPage - 2 && pCurrentPage > 3) || (i === pCurrentPage + 2 && pCurrentPage < totalPages - 2)) {
+            if (!html.endsWith('...')) html += `<span class="pagination-dots">...</span>`;
+        }
+    }
+    html += `<button class="page-num-btn" onclick="renderPage(${pCurrentPage + 1})" ${pCurrentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+    container.innerHTML = html;
+}
+
+window.setPaginationMode = (mode) => {
+    if (pMode === mode) return;
+    pMode = mode;
+    localStorage.setItem("pMode", mode);
+    updateTable([...pCurrentData].reverse());
+    
+    // Update Active Button UI
+    $$(".p-btn").forEach(b => {
+        const isClickedMode = b.getAttribute("onclick").includes(mode);
+        b.classList.toggle("active", isClickedMode);
+    });
+};
+
+window.handleRowsChange = (val) => {
+    pRowsPerPage = parseInt(val);
+    localStorage.setItem("pRowsPerPage", pRowsPerPage);
+    updateTable([...pCurrentData].reverse());
+};
+
+
+
+/* ==========================
+🔔 Section: 07 Notifications & PWA
+   - Service Worker & Reminders
+========================== */
+
+// ---- ( Notifications ) ----
+async function requestNotifPermission() {
+    if ("Notification" in window && Notification.permission !== "granted") {
+        await Notification.requestPermission();
+    }
+}
+
+function checkNotifications() {
+    if (!notifEnabled || notifTimes.length === 0) return;
+    
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const mins = String(now.getMinutes()).padStart(2, '0');
+    const currentTime = `${hours}:${mins}`; 
+    
+    const currentMinuteVal = now.getHours() * 60 + now.getMinutes();
+    if (currentMinuteVal === lastCheckedMinute) return;
+    lastCheckedMinute = currentMinuteVal;
+
+    if (notifTimes.includes(currentTime)) {
+        if (Notification.permission === "granted") {
+            new Notification("FMT Tracker Pro", {
+                body: `আপনার রিপোর্ট চেক করার সময় হয়েছে (${format12hr(currentTime)})।`,
+                icon: "https://cdn-icons-png.flaticon.com/512/3119/3119338.png"
+            });
+        } else {
+            showToast(`⏰ রিমাইন্ডার: রিপোর্ট চেক করুন (${format12hr(currentTime)})`);
+        }
+    }
+}
+setInterval(checkNotifications, 5000); 
+
+function renderReminders() {
+    const list = $('#notifList');
+    if (!list) return;
+    list.innerHTML = notifTimes.length ? notifTimes.sort().map((t, i) => `
+        <div class="rem-item"> 
+            <span class="rem-time"><i class="far fa-clock"></i> ${format12hr(t)}</span> 
+            <button onclick="confirmDelRem(${i})" class="del-rem"><i class="fas fa-trash-can"></i></button> 
+        </div>`).join('') : '<p class="empty-msg">কোন রিমাইন্ডার সেট করা নেই</p>';
+}
+
 window.confirmDelRem = (i) => {
-    const timeRaw = notifTimes[i]; // Stored in 24hr format
-    const timeDisplay = format12hr(timeRaw); // Converted to 12hr for display
+    const timeRaw = notifTimes[i]; 
+    const timeDisplay = format12hr(timeRaw); 
     openModal(`
         <div style="padding:25px; text-align:center;"> 
             <i class="fas fa-bell-slash" style="font-size:30px; color:#f59e0b; margin-bottom:15px;"></i> 
@@ -632,146 +717,186 @@ function deleteReminder(i) {
     showToast("রিমাইন্ডার মুছে ফেলা হয়েছে", "success");
 }
 
-
-// 🔔 7. NOTIFICATIONS SYSTEM 🔔
-
-async function requestNotifPermission() {
-    if ("Notification" in window && Notification.permission !== "granted") {
-        await Notification.requestPermission();
-    }
+// ---- ( PWA Installer Logic ) ----
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(() => console.log('SW Ready'))
+            .catch(err => console.log('SW Fail', err));
+    });
 }
 
-function checkNotifications() {
-    if (!notifEnabled || notifTimes.length === 0) return;
-    
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const mins = String(now.getMinutes()).padStart(2, '0');
-    const currentTime = `${hours}:${mins}`; // 24hr format
-    
-    const currentMinuteVal = now.getHours() * 60 + now.getMinutes();
-    if (currentMinuteVal === lastCheckedMinute) return;
-    lastCheckedMinute = currentMinuteVal;
 
-    if (notifTimes.includes(currentTime)) {
-        if (Notification.permission === "granted") {
-            new Notification("FMT Tracker Pro", {
-                body: `আপনার রিপোর্ট চেক করার সময় হয়েছে (${format12hr(currentTime)})।`,
-                icon: "https://cdn-icons-png.flaticon.com/512/3119/3119338.png"
-            });
-        } else {
-            showToast(`⏰ রিমাইন্ডার: রিপোর্ট চেক করুন (${format12hr(currentTime)})`);
+// ---- ( PWA Install UI Manager ) ----
+function checkInstallState() {
+    // অ্যাপটি ইন্সটলড (Standalone) মোডে আছে কি না চেক করা
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    if (isStandalone) {
+        console.log("App is running in Installed Mode");
+
+        // ১. Home/Add Tab এর কার্ডটি পুরোপুরি গায়েব করা
+        const homeCard = document.getElementById('homeInstallCard');
+        if (homeCard) {
+            homeCard.classList.add('hidden');
+        }
+
+        // ২. Settings Tab এর কার্ডটি মডিফাই করা
+        const settingsCard = document.getElementById('pwaInstallBtn');
+        
+        if (settingsCard) {
+            // আইকন এবং টেক্সট চেঞ্জ করা
+            const title = settingsCard.querySelector('.install-text h3');
+            const desc = settingsCard.querySelector('.install-text p');
+            const icon = settingsCard.querySelector('.install-icon i');
+
+            if (title) title.innerText = "অ্যাপ সক্রিয় আছে";
+            if (desc) desc.innerText = "আপনি অ্যাপ ভার্সন ব্যবহার করছেন।";
+            if (icon) {
+                icon.className = "fas fa-check-circle"; // ডাউনলোড আইকন বদলে চেক আইকন
+                icon.parentElement.style.background = "rgba(16, 185, 129, 0.2)"; // সবুজ আভা
+                icon.style.color = "#10b981"; // সবুজ রং
+            }
+
+            // বাটনটি ডিসেবল এবং ডিজাইন চেঞ্জ করা
+            const btn = settingsCard.querySelector('.install-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-check"></i> Installed';
+                btn.classList.add('btn-installed-disabled');
+            }
         }
     }
 }
-setInterval(checkNotifications, 5000); 
+
+// অ্যাপ লোড হলে ফাংশনটি কল হবে
+document.addEventListener('DOMContentLoaded', () => {
+    checkInstallState();
+    
+    // তোমার অন্যান্য init ফাংশনগুলো এখানে থাকবে...
+});
 
 
-// ⚙️ 8. INITIALIZATION & EVENTS ⚙️
+/* ==========================
+⚙️ Section: 08 Events & Init
+   - Initial Setup & Listeners
+========================== */
 
-function syncThemeUI(isDark) {
-    document.body.classList.toggle('dark-theme', isDark);
-    if ($('#darkToggleSet')) $('#darkToggleSet').checked = isDark;
-}
+function initOfflineAndPWA() {
+    // 1. Offline Banner Logic
+    if($("#closeOfflineAlert")) {
+        $("#closeOfflineAlert").onclick = () => {
+            isOfflineBannerDismissed = true;
+            $("#offlineAlert").classList.add("hidden");
+        };
+    }
 
-function updatePinSettingsUI() {
-    const toggle = $('#pinAutoToggleSet');
-    if (toggle) toggle.checked = autoPinVerify;
+    // 2. Online Event
+    window.addEventListener('online', () => {
+        isOfflineBannerDismissed = false; 
+        $("#offlineAlert")?.classList.add("hidden"); 
+        fetchData(); 
+        showToast("ইন্টারনেট ফিরে এসেছে। ডাটা আপডেট হচ্ছে...", "success");
+    });
+
+    // 3. Offline Event
+    window.addEventListener('offline', () => {
+        if(!isOfflineBannerDismissed) $("#offlineAlert")?.classList.remove("hidden");
+        showToast("ইন্টারনেট সংযোগ বিচ্ছিন্ন", "error");
+    });
+
+    // 4. Install Prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault(); 
+        deferredPrompt = e;
+        
+        const installCard = $("#pwaInstallBtn");
+        if(installCard) {
+            installCard.classList.remove("hidden");
+            installCard.querySelector("button").onclick = async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        installCard.classList.add("hidden");
+                    }
+                    deferredPrompt = null;
+                }
+            };
+        }
+    });
 }
 
 function setupEvents() {
-    // 1. PIN & Keypad Events
-    $$('.key-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            if(navigator.vibrate) navigator.vibrate(20);
-            handleKeyPress(btn.dataset.key);
-        };
+    // 1. Inputs
+    $$(".key-btn").forEach(btn => btn.onclick = () => {
+        if(navigator.vibrate) navigator.vibrate(20);
+        handleKeyPress(btn.dataset.key);
     });
-
-    const pinInput = $('#pinInput');
-    if(pinInput) {
-        pinInput.addEventListener('input', (e) => handlePinInput(e.target.value));
-        pinInput.addEventListener('blur', () => {}); // Focus backup
-    }
     
-    document.addEventListener('keydown', (e) => {
-        if (!$('#pinGate').classList.contains('hidden')) {
-             const input = $('#pinInput');
-             if(document.activeElement !== input) input.focus();
-             if(e.key === 'Enter') processPin(input.value);
+    const pinInput = $("#pinInput");
+    if (pinInput) pinInput.addEventListener("input", e => handlePinInput(e.target.value));
+    
+    // 2. Global Keyboard (PC)
+    document.addEventListener("keydown", (e) => {
+        if ($("#pinGate").classList.contains("hidden")) return;
+        if (e.ctrlKey || e.altKey || e.metaKey || (e.key.length > 1 && e.key !== "Backspace" && e.key !== "Enter")) return;
+
+        if (/^[0-9]$/.test(e.key)) {
+            handleKeyPress(e.key);
+            e.preventDefault();
+        } else if (e.key === "Backspace" || e.key === "Enter") {
+            handleKeyPress(e.key);
+            e.preventDefault();
         }
+        $("#pinInput")?.focus();
     });
-    
-    // Focus Wrapper
-    const pinWrapper = document.querySelector('.pin-box-wrapper');
-    if (pinWrapper) {
-        pinWrapper.addEventListener('click', () => {
-            const input = document.getElementById('pinInput');
-            if(input) input.focus();
-        });
-    }
 
-    // Settings: Auto PIN
-    const pinAutoTgl = $('#pinAutoToggleSet');
-    if (pinAutoTgl) {
-        pinAutoTgl.onchange = (e) => {
-            autoPinVerify = e.target.checked;
-            localStorage.setItem(LS_PIN_AUTO, autoPinVerify);
-            updatePinSettingsUI();
-            showToast(autoPinVerify ? "অটো পিন ভেরিফাই চালু" : "ম্যানুয়াল পিন ভেরিফাই চালু");
-        };
-    }
-
-    if ($('#pinViewToggle')) {
-        $('#pinViewToggle').onchange = toggleLockPinView;
-    }
-    
-    // Settings: Theme
-    const handleTheme = (isDark) => {
-        syncThemeUI(isDark);
-        localStorage.setItem(LS_THEME, isDark ? 'dark' : 'light');
+    // 3. Settings Toggles
+    if ($("#pinAutoToggleSet")) $("#pinAutoToggleSet").onchange = e => {
+        autoPinVerify = e.target.checked;
+        localStorage.setItem(LS_PIN_AUTO, autoPinVerify);
+        showToast(autoPinVerify ? "অটো পিন চালু" : "ম্যানুয়াল পিন চালু");
     };
-    if ($('#pinThemeToggle')) $('#pinThemeToggle').onclick = () => handleTheme(!document.body.classList.contains('dark-theme'));
-    $('#themeToggle').onclick = () => handleTheme(!document.body.classList.contains('dark-theme'));
-    if ($('#darkToggleSet')) $('#darkToggleSet').onchange = (e) => handleTheme(e.target.checked);
+    if ($("#pinViewToggle")) $("#pinViewToggle").onchange = toggleLockPinView;
 
-    // 2. Navigation
-    $$('.tabBtn, .m-nav-link').forEach(btn => {
+    const handleTheme = isDark => {
+        document.body.classList.toggle("dark-theme", isDark);
+        if ($("#darkToggleSet")) $("#darkToggleSet").checked = isDark;
+        localStorage.setItem(LS_THEME, isDark ? "dark" : "light");
+    };
+    if ($("#pinThemeToggle")) $("#pinThemeToggle").onclick = () => handleTheme(!document.body.classList.contains("dark-theme"));
+    $("#themeToggle").onclick = () => handleTheme(!document.body.classList.contains("dark-theme"));
+    if ($("#darkToggleSet")) $("#darkToggleSet").onchange = e => handleTheme(e.target.checked);
+
+    // 4. Navigation
+    $$(".tabBtn, .m-nav-link").forEach(btn => {
         btn.onclick = () => {
             const target = btn.dataset.target;
-            $$('.tab-item').forEach(t => t.classList.toggle('hidden', t.id !== target));
-            $$('.tabBtn').forEach(b => b.classList.toggle('active', b.dataset.target === target));
-            $$('.m-nav-link').forEach(b => b.classList.toggle('active', b.dataset.target === target));
-            $('#filterBar').classList.toggle('hidden', target !== 'tabTable' && target !== 'tabGraph');
+            $$(".tab-item").forEach(t => t.classList.toggle("hidden", t.id !== target));
+            $$(".tabBtn").forEach(b => b.classList.toggle("active", b.dataset.target === target));
+            $$(".m-nav-link").forEach(b => b.classList.toggle("active", b.dataset.target === target));
+            $("#filterBar").classList.toggle("hidden", target !== "tabTable" && target !== "tabGraph");
             
-            const titleMap = { 'tabInput': 'ডাটা এন্ট্রি', 'tabTable': 'রিপোর্ট শিট', 'tabGraph': 'বিশ্লেষণ', 'tabPin': 'সেটিংস' };
-            $('#viewTitle').textContent = titleMap[target] || "ড্যাশবোর্ড";
+            const titleMap = { tabInput: "ডাটা এন্ট্রি", tabTable: "রিপোর্ট শিট", tabGraph: "বিশ্লেষণ", tabPin: "সেটিংস" };
+            $("#viewTitle").textContent = titleMap[target] || "ড্যাশবোর্ড";
             
-            if (window.innerWidth < 768) $('#sidebar').classList.add('collapsed');
-            if (target === 'tabGraph') renderDashboard();
+            if (window.innerWidth < 768) $("#sidebar").classList.add("collapsed");
+            if (target === "tabGraph") renderDashboard();
         };
     });
 
-    // 3. Filters
-    ['yearSelect', 'monthSelect', 'startDate', 'endDate'].forEach(id => {
-        if ($('#' + id)) $('#' + id).onchange = renderDashboard;
-    });
-    $('#resetFilters').onclick = () => {
-        ['yearSelect', 'monthSelect', 'startDate', 'endDate'].forEach(id => { if ($('#' + id)) $('#' + id).value = ""; });
+    // 5. Filters
+    ["yearSelect", "monthSelect", "startDate", "endDate"].forEach(id => $(`#${id}`) && ($(`#${id}`).onchange = renderDashboard));
+    $("#resetFilters").onclick = () => {
+        ["yearSelect", "monthSelect", "startDate", "endDate"].forEach(id => $(`#${id}`) && ($(`#${id}`).value = ""));
         renderDashboard();
-        showToast("ফিল্টার রিসেট করা হয়েছে");
+        showToast("ফিল্টার রিসেট");
     };
+    $("#refreshDataBtn").onclick = async () => { await fetchData(); showToast("ডাটা রিফ্রেশ করা হয়েছে", "success"); };
+    $("#saveEntry").onclick = submitEntry;
 
-    // 4. Refresh Button
-    const refreshBtn = document.getElementById('refreshDataBtn');
-    if (refreshBtn) {
-        refreshBtn.onclick = async function() {
-             await fetchData(); 
-             showToast("ডাটা রিফ্রেশ করা হয়েছে", "success");
-        };
-    }
-
-    // 5. Notifications
+    // 6. Notifications
     $('#addTimeBtn').onclick = () => {
         const t = $('#notifTime').value;
         if (!t) return showToast("সময় নির্বাচন করুন", "error");
@@ -781,7 +906,6 @@ function setupEvents() {
         renderReminders();
         showToast(`নতুন রিমাইন্ডার যোগ হয়েছে (${format12hr(t)})`, "success");
     };
-    
     const nToggle = $('#notifEnableToggle');
     if (nToggle) {
         nToggle.checked = notifEnabled;
@@ -793,244 +917,40 @@ function setupEvents() {
         };
     }
 
-    // 6. Settings Buttons
-    $('#changePinBtn').onclick = changePin;
+    // 7. Misc
+    $("#useCurrentTimeToggle").onchange = e => $("#manualInputArea").classList.toggle("hidden", e.target.checked);
+    $("#changePinBtn").onclick = changePin;
     $('#factoryResetBtn').onclick = showResetStep1;
-    if($('#closeSidebar')) $('#closeSidebar').onclick = () => $('#sidebar').classList.add('collapsed');
-    if($('#mainLogo')) $('#mainLogo').onclick = () => $('#sidebar').classList.toggle('collapsed');
+    if ($("#closeSidebar")) $("#closeSidebar").onclick = () => $("#sidebar").classList.add("collapsed");
+    if ($("#mainLogo")) $("#mainLogo").onclick = () => $("#sidebar").classList.toggle("collapsed");
 
-    // 7. Input Toggle
-    const toggle = $('#useCurrentTimeToggle');
-    const manualArea = $('#manualInputArea');
-    if (toggle && manualArea) {
-        toggle.onchange = (e) => {
-            manualArea.classList.toggle('hidden', e.target.checked);
-        };
-        // Set initial state on load
-        manualArea.classList.toggle('hidden', toggle.checked);
-    }
-    // 8. Submit
-    $('#saveEntry').onclick = submitEntry;
-    
-    // 9. Infinite Scroll Listener (Fixed)
-    window.addEventListener('scroll', () => {
-        // ১. যদি 'Pages' মোড হয়, তাহলে কাজ করবে না
-        if (pMode !== 'infinite') return;
-        
-        // ২. যদি সব ডাটা লোড হয়ে গিয়ে থাকে ('End Message' দেখাচ্ছে), তাহলে কাজ করবে না
-        if (!$('#endMessage').classList.contains('hidden')) return;
-
-        // ৩. স্ক্রল পজিশন চেক (ফুটারের একটু আগে লোড শুরু হবে)
-        const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-        
-        if (scrollTop + clientHeight >= scrollHeight - 50) {
-            loadMoreInfinite();
-        }
+    // 8. Infinite Scroll
+    window.addEventListener("scroll", () => {
+        if (pMode !== "infinite" || !$("#endMessage").classList.contains("hidden")) return;
+        if (document.documentElement.scrollTop + document.documentElement.clientHeight >= document.documentElement.scrollHeight - 50) loadMoreInfinite();
     });
-
 }
 
-function renderReminders() {
-    const list = $('#notifList');
-    if (!list) return;
-    list.innerHTML = notifTimes.length ? notifTimes.sort().map((t, i) => `
-        <div class="rem-item"> 
-            <span class="rem-time"><i class="far fa-clock"></i> ${format12hr(t)}</span> 
-            <button onclick="confirmDelRem(${i})" class="del-rem"><i class="fas fa-trash-can"></i></button> 
-        </div>`).join('') : '<p class="empty-msg">কোন রিমাইন্ডার সেট করা নেই</p>';
-}
-
-
-// 🚀 APP STARTUP
-document.addEventListener('DOMContentLoaded', () => {
-    // UI Load
-    updatePinSettingsUI();
+// ---- ( App Entry Point ) ----
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. Init System
+    initOfflineAndPWA();
+    if ($("#pinAutoToggleSet")) $("#pinAutoToggleSet").checked = autoPinVerify;
     setupEvents();
     renderReminders();
-    updateDateDisplay(); 
+    updateDateDisplay();
     
-    // Theme Load
-    if (localStorage.getItem(LS_THEME) === 'dark') syncThemeUI(true);
+    // 2. Load Theme
+    if (localStorage.getItem(LS_THEME) === "dark") {
+        document.body.classList.add("dark-theme");
+        if ($("#darkToggleSet")) $("#darkToggleSet").checked = true;
+    }
+
+    // 3. Initial Focus
+    if (window.innerWidth > 992) $("#pinInput")?.focus();
     
-    // Initial Focus
-    if(window.innerWidth > 992) $('#pinInput')?.focus();
-});
-
-
-// --- 1. PAGINATION STATE ---
-// global variables (মেইন ফাইলে ডিক্লেয়ার করা থাকলে let বাদ দিয়ে লিখুন)
-pMode = localStorage.getItem('pMode') || 'infinite'; 
-pRowsPerPage = parseInt(localStorage.getItem('pRowsPerPage')) || 10;
-pCurrentPage = 1;
-pIsLoading = false;
-pCurrentData = []; 
-pDisplayedCount = 0;
-
-// --- 2. INITIALIZE UI ON LOAD ---
-function initPaginationSettings() {
-    // সারি সংখ্যা ড্রপডাউন সেট করা
-    const rowSelector = document.querySelector('#rowsPerPage');
+    // 4. Init Pagination UI
+    const rowSelector = $("#rowsPerPage");
     if (rowSelector) rowSelector.value = pRowsPerPage;
-    
-    // বাটন একটিভ স্টেট সেট করা
-    syncActiveButton();
-}
-document.addEventListener('DOMContentLoaded', initPaginationSettings);
-
-// একটিভ বাটন ভিজ্যুয়ালি আপডেট করার ফাংশন
-function syncActiveButton() {
-    const buttons = document.querySelectorAll('.p-btn');
-    buttons.forEach(btn => {
-        // বাটনের onclick অ্যাট্রিবিউটে আমাদের pMode আছে কিনা চেক করা
-        // উদাহরণ: 'setPaginationMode('infinite')' এ 'infinite' আছে কিনা
-        const btnOnClick = btn.getAttribute('onclick') || "";
-        
-        if (btnOnClick.includes(`'${pMode}'`)) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
-}
-
-// --- 3. UPDATED TABLE RENDERING ---
-function updateTable(data) {
-    pCurrentData = [...data].reverse();
-    
-    const endMsg = document.querySelector('#endMessage');
-    const infLoader = document.querySelector('#infiniteLoader');
-    const tableRows = document.querySelector('#tableRows');
-    const pagControls = document.querySelector('#paginationControls');
-
-    if (endMsg) endMsg.classList.add('hidden');
-    if (infLoader) infLoader.classList.add('hidden');
-
-    if (pMode === 'infinite') {
-        pDisplayedCount = 0;
-        if (tableRows) tableRows.innerHTML = ""; 
-        if (pagControls) pagControls.classList.add('hidden');
-        loadMoreInfinite(); 
-    } else {
-        if (pagControls) pagControls.classList.remove('hidden');
-        renderPage(1); 
-    }
-}
-
-// --- 4. INFINITE SCROLL LOGIC ---
-function loadMoreInfinite() {
-    if (pIsLoading || pDisplayedCount >= pCurrentData.length) return;
-
-    pIsLoading = true;
-    const loader = document.querySelector('#infiniteLoader');
-    if (loader) loader.classList.remove('hidden');
-
-    setTimeout(() => {
-        const nextBatch = pCurrentData.slice(pDisplayedCount, pDisplayedCount + pRowsPerPage);
-        renderRows(nextBatch, true); 
-        
-        pDisplayedCount += nextBatch.length;
-        pIsLoading = false;
-        
-        if (loader) loader.classList.add('hidden');
-
-        const endMsg = document.querySelector('#endMessage');
-        if (pDisplayedCount >= pCurrentData.length && pCurrentData.length > 0) {
-            if (endMsg) endMsg.classList.remove('hidden');
-        }
-    }, 500); 
-}
-
-// --- 5. PAGINATION (PAGES) LOGIC ---
-function renderPage(page) {
-    pCurrentPage = page;
-    const start = (page - 1) * pRowsPerPage;
-    const pageData = pCurrentData.slice(start, start + pRowsPerPage);
-    
-    const tableRows = document.querySelector('#tableRows');
-    if (tableRows) tableRows.innerHTML = ""; 
-    renderRows(pageData, false);
-    renderPaginationControls();
-
-    const endMsg = document.querySelector('#endMessage');
-    const totalPages = Math.ceil(pCurrentData.length / pRowsPerPage);
-    if (endMsg) {
-        if (page === totalPages && pCurrentData.length > 0) {
-            endMsg.classList.remove('hidden');
-        } else {
-            endMsg.classList.add('hidden');
-        }
-    }
-}
-
-// --- 6. CONTROLS & LOCAL STORAGE ---
-function setPaginationMode(mode) {
-    if (pMode === mode) return;
-    
-    pMode = mode;
-    localStorage.setItem('pMode', mode); 
-    
-    syncActiveButton(); 
-
-    // ডাটা রি-রেন্ডার করার আগে একবার রিভার্স করে মেইন অর্ডারে আনা
-    const originalOrder = [...pCurrentData].reverse();
-    updateTable(originalOrder); 
-}
-
-function handleRowsChange(val) {
-    pRowsPerPage = parseInt(val);
-    localStorage.setItem('pRowsPerPage', pRowsPerPage); 
-    
-    const originalOrder = [...pCurrentData].reverse();
-    updateTable(originalOrder);
-}
-
-// --- 7. COMMON ROW RENDERER ---
-function renderRows(data, append) {
-    const tbody = document.querySelector('#tableRows');
-    if (!tbody) return;
-
-    if (!data.length && !append) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
-        return;
-    }
-
-    const html = data.map(d => `
-        <tr class="fade-in">
-            <td><span class="sn-badge">${d.serial}</span></td>
-            <td>
-                <div class="table-date-cell">
-                    <span>${d.date}</span>
-                    <div class="table-time-row">
-                        <i class="far fa-clock"></i><span class="time-text">${d.time || 'N/A'}</span>
-                    </div>
-                </div>
-            </td>
-            <td class="fw-800">${d.branch}</td>
-            <td class="fw-800">${d.central}</td>
-        </tr>`).join('');
-
-    if (append) tbody.insertAdjacentHTML('beforeend', html);
-    else tbody.innerHTML = html;
-}
-
-// --- 8. PAGINATION CONTROLS GENERATOR ---
-function renderPaginationControls() {
-    const container = document.querySelector('#paginationControls');
-    if (!container) return;
-
-    const totalPages = Math.ceil(pCurrentData.length / pRowsPerPage);
-    if (totalPages <= 1) { container.innerHTML = ""; return; }
-
-    let html = `<button class="page-num-btn" onclick="renderPage(${pCurrentPage - 1})" ${pCurrentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
-
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= pCurrentPage - 1 && i <= pCurrentPage + 1)) {
-            html += `<button class="page-num-btn ${i === pCurrentPage ? 'active' : ''}" onclick="renderPage(${i})">${i}</button>`;
-        } else if ((i === pCurrentPage - 2 && pCurrentPage > 3) || (i === pCurrentPage + 2 && pCurrentPage < totalPages - 2)) {
-            if (!html.endsWith('...')) html += `<span class="pagination-dots">...</span>`;
-        }
-    }
-
-    html += `<button class="page-num-btn" onclick="renderPage(${pCurrentPage + 1})" ${pCurrentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
-    container.innerHTML = html;
-}
+    $$(".p-btn").forEach(b => b.classList.toggle("active", b.getAttribute("onclick").includes(pMode)));
+});

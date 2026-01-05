@@ -1,0 +1,46 @@
+[33mcommit 24c6c2a1d24e42c7bf8d1cc595d75b89b98f8cc7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;33mtag: [m[1;33mv16[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Muhtasim Rahman <programs.turzo@gmail.com>
+Date:   Wed Dec 31 04:00:50 2025 +0600
+
+    V16: Advanced table pagination and UI updates
+
+[33mcommit f05af628c9dd4662bcac9b12d81970273f61bbf3[m[33m ([m[1;33mtag: [m[1;33mv15[m[33m)[m
+Author: Muhtasim Rahman <programs.turzo@gmail.com>
+Date:   Tue Dec 30 22:02:44 2025 +0600
+
+    v15: Stable release with data submission & UI/UX fixes
+    
+    Description:
+    * New Feature: সরাসরি অ্যাপ থেকে Google Sheet-এ ডাটা পাঠানোর জন্য নতুন ফাংশন যোগ করা হয়েছে। তবে কাস্টম টাইম সাবমিশনের ক্ষেত্রে বর্তমানে কিছু পরিচিত বাগ রয়েছে।
+    * Backend Improvements: ডাটা হ্যান্ডলিং আরও স্মুথ করার জন্য ব্যাকএন্ড লজিকে বড় পরিবর্তন আনা হয়েছে।
+    * Graph/Chart Enhancements: চার্ট ডিজাইন এবং হোভার ইফেক্ট ইম্প্রুভ করা হয়েছে। টুলটিপ আপডেট পরবর্তী ভার্সনে আসবে।
+    * Improved Header: হেডারে বর্তমান তারিখের সাথে বার (Day Name) যোগ করা হয়েছে।
+    * System Optimization: লোকাল স্টোরেজ কী (Keys) আপডেট এবং কোড ক্লিনআপ করা হয়েছে।
+    * Visual Feedback: ডাটা রিফ্রেশ ও সেভ করার সময় স্পিনিং অ্যানিমেশন এবং লোডিং ইন্ডিকেটর যোগ করা হয়েছে।
+    * Bug Fixes & UX: এছাড়াও ছোটখাটো বাগ ফিক্স এবং ডিজাইন এনহ্যান্সমেন্ট করা হয়েছে।
+
+[33mcommit 302510a21457a99afc5e84bb38183154bab78394[m[33m ([m[1;33mtag: [m[1;33mv14[m[33m)[m
+Author: Muhtasim Rahman <167641690+muhtasim-rahman@users.noreply.github.com>
+Date:   Mon Dec 29 04:33:22 2025 +0600
+
+    Fix title tag closing
+    
+    title tag closing e ektu somossa thakara karobe web er body load hocchilo na. Onek ghatagati korar por bukhta parlam ekta '<' vule muche jaway eirokom hoiche 😑
+
+[33mcommit 642abcf32e92c335aad4fa6a5740a8d27810bacf[m
+Author: Muhtasim Rahman <programs.turzo@gmail.com>
+Date:   Mon Dec 29 03:48:59 2025 +0600
+
+    Added Footer
+
+[33mcommit b10e633f6d4bd9a241be8ffa90771fe225c8747b[m
+Author: Muhtasim Rahman <programs.turzo@gmail.com>
+Date:   Mon Dec 29 03:44:52 2025 +0600
+
+    Uploaded first README.md file
+
+[33mcommit 0d318557f9872792bb183a9459ae5e69dfbb6481[m
+Author: Muhtasim Rahman <programs.turzo@gmail.com>
+Date:   Mon Dec 29 03:07:05 2025 +0600
+
+    first commit V14
