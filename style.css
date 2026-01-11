@@ -1897,3 +1897,489 @@ opacity: 0.5;
 cursor: not-allowed;
 filter: grayscale(1);
 }
+
+/* Add to the end of existing style.css */
+
+/* =========================
+📚 Section: 13 Subject Feature
+    - Mode Switcher, Subject Cards, Export
+========================= */
+
+/* ---- ( Mode Switcher ) ---- */
+.mode-switcher {
+  margin-bottom: 25px;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 8px;
+  display: flex;
+  justify-content: center;
+}
+
+.mode-toggle {
+  display: flex;
+  background: var(--bg);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  width: 100%;
+  max-width: 400px;
+}
+
+.mode-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.mode-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.mode-btn.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* ---- ( Mode Visibility ) ---- */
+.course-mode, .subject-mode {
+  transition: opacity 0.3s ease;
+}
+
+.subject-mode.hidden {
+  display: none !important;
+}
+
+/* ---- ( Subject Info Card ) ---- */
+.subject-info-card {
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+  animation: slideDown 0.3s ease;
+}
+
+.subject-info-card h4 {
+  margin: 0 0 10px 0;
+  color: var(--primary);
+  font-size: 16px;
+}
+
+.syllabus-text {
+  margin: 5px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ---- ( Subject Table ) ---- */
+.subject-table-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subject-name {
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.subject-syllabus {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- ( Export Buttons ) ---- */
+.export-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.export-btn {
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.export-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.excel-btn {
+  background: #10b981;
+  color: white;
+}
+
+.pdf-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.print-btn {
+  background: #6366f1;
+  color: white;
+}
+
+/* ---- ( Web Info Card ) ---- */
+.web-info-card {
+  border-left: 4px solid var(--primary);
+}
+
+.web-info-content {
+  display: grid;
+  gap: 12px;
+  margin: 15px 0;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.info-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.info-value, .info-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.info-link:hover {
+  text-decoration: underline;
+}
+
+/* ---- ( Fourth Subject Container ) ---- */
+#fourthSubjectContainer {
+  flex-direction: column;
+  align-items: flex-start !important;
+}
+
+#fourthSubjectContainer .set-info {
+  margin-bottom: 10px;
+}
+
+#fourthSubjectSelect {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-main);
+}
+
+/* ---- ( Responsive Adjustments ) ---- */
+@media (max-width: 768px) {
+  .mode-btn {
+    padding: 10px 15px;
+    font-size: 13px;
+  }
+  
+  .mode-btn i {
+    font-size: 14px;
+  }
+  
+  .export-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mode-toggle {
+    flex-direction: column;
+  }
+  
+  .mode-btn {
+    width: 100%;
+  }
+}
+
+/* =========================
+🎯 Section: Subject Feature Styles
+    - Mode Switcher, Subject Cards, Export
+========================= */
+
+/* ---- ( Mode Switcher ) ---- */
+.mode-switcher {
+  margin-bottom: 25px;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 8px;
+  display: flex;
+  justify-content: center;
+}
+
+.mode-toggle {
+  display: flex;
+  background: var(--bg);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  width: 100%;
+  max-width: 400px;
+}
+
+.mode-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.mode-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.mode-btn.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* ---- ( Mode Visibility ) ---- */
+.course-mode, .subject-mode {
+  transition: opacity 0.3s ease;
+}
+
+.subject-mode.hidden {
+  display: none !important;
+}
+
+/* ---- ( Subject Info Card ) ---- */
+.subject-info-card {
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+  animation: slideDown 0.3s ease;
+}
+
+.subject-info-card h4 {
+  margin: 0 0 10px 0;
+  color: var(--primary);
+  font-size: 16px;
+}
+
+.syllabus-text {
+  margin: 5px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ---- ( Subject Table ) ---- */
+.subject-table-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subject-name {
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.subject-syllabus {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- ( Export Buttons ) ---- */
+.export-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.export-btn {
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.export-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.excel-btn {
+  background: #10b981;
+  color: white;
+}
+
+.pdf-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.print-btn {
+  background: #6366f1;
+  color: white;
+}
+
+/* ---- ( Web Info Card ) ---- */
+.web-info-card {
+  border-left: 4px solid var(--primary);
+}
+
+.web-info-content {
+  display: grid;
+  gap: 12px;
+  margin: 15px 0;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.info-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.info-value, .info-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.info-link:hover {
+  text-decoration: underline;
+}
+
+/* ---- ( Fourth Subject Container ) ---- */
+#fourthSubjectContainer {
+  flex-direction: column;
+  align-items: flex-start !important;
+}
+
+#fourthSubjectContainer .set-info {
+  margin-bottom: 10px;
+}
+
+#fourthSubjectSelect {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-main);
+}
+
+/* ---- ( Responsive Adjustments ) ---- */
+@media (max-width: 768px) {
+  .mode-btn {
+    padding: 10px 15px;
+    font-size: 13px;
+  }
+  
+  .mode-btn i {
+    font-size: 14px;
+  }
+  
+  .export-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mode-toggle {
+    flex-direction: column;
+  }
+  
+  .mode-btn {
+    width: 100%;
+  }
+}
+
+/* ---- ( Animation ) ---- */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

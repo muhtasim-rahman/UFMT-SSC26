@@ -3,481 +3,815 @@
 <!-- 📄 DOCUMENT HEADER & METADATA -->
 <head>
   <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<meta name="theme-color" content="#6366f1">
-<meta name="description" content="FMT Tracker Pro - Advanced Merit Tracking System">
-<title>Udvash FMT Tracker (SSC-26) ~ TURZO []</title>
-<link rel="icon" type="image/x-icon" href="./images/favicon.ico">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#6366f1">
+  <meta name="description" content="FMT Tracker Pro - Advanced Merit Tracking System">
+  <title>Udvash FMT Tracker (SSC-26) ~ TURZO [18]</title>
+  <link rel="icon" type="image/x-icon" href="./images/favicon.ico">
 
-<!-- 🎨 FONTS & ICONS -->
-<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- 🎨 FONTS & ICONS -->
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-<!-- 🖌️ STYLESHEET -->
-<link rel="stylesheet" href="style.css" />
-<link rel="manifest" href="manifest.json">
-
+  <!-- 🖌️ STYLESHEET -->
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json">
 </head>
 
 <body class="light-theme">
 
 <!-- 🔒 SECTION: SECURITY PIN GATE -->
 <div id="pinGate">
-<!-- Theme Toggle on Pin Screen -->
-<div class="pin-header-actions">
-<button id="pinThemeToggle" class="theme-switch-sm">
-<i class="fas fa-sun sun-icon"></i>
-<i class="fas fa-moon moon-icon"></i>
-</button>
-</div>
+  <!-- Theme Toggle on Pin Screen -->
+  <div class="pin-header-actions">
+    <button id="pinThemeToggle" class="theme-switch-sm">
+      <i class="fas fa-sun sun-icon"></i>
+      <i class="fas fa-moon moon-icon"></i>
+    </button>
+  </div>
 
-<div class="pin-box-wrapper">
-<div class="pin-content-top">
-<div class="pin-header lock-icon-area">
-<div class="lock-animation-container">
-<div id="lockBtn" class="btn-lock">
-<svg class="lock-svg" viewBox="0 0 64 64">
-<path class="shackle" d="M18 28V18C18 10.268 24.268 4 32 4C39.732 4 46 10.268 46 18V28"></path>
-<rect class="lock-body" x="12" y="28" width="40" height="32" rx="6"></rect>
-<circle class="keyhole" cx="32" cy="44" r="5"></circle>
-</svg>
-<div class="particles" id="particles"></div>
-</div>
-</div>
+  <div class="pin-box-wrapper">
+    <div class="pin-content-top">
+      <div class="pin-header lock-icon-area">
+        <div class="lock-animation-container">
+          <div id="lockBtn" class="btn-lock">
+            <svg class="lock-svg" viewBox="0 0 64 64">
+              <path class="shackle" d="M18 28V18C18 10.268 24.268 4 32 4C39.732 4 46 10.268 46 18V28"></path>
+              <rect class="lock-body" x="12" y="28" width="40" height="32" rx="6"></rect>
+              <circle class="keyhole" cx="32" cy="44" r="5"></circle>
+            </svg>
+            <div class="particles" id="particles"></div>
+          </div>
+        </div>
 
-<h2>সিকিউরিটি পিন</h2>
-</div>
+        <h2>সিকিউরিটি পিন</h2>
+      </div>
 
-<!-- Pin Input Display -->
-<div class="pin-field-wrapper">
-<input id="pinInput" type="password" maxlength="6" inputmode="numeric" readonly />
+      <!-- Pin Input Display -->
+      <div class="pin-field-wrapper">
+        <input id="pinInput" type="password" maxlength="6" inputmode="numeric" readonly />
 
-<div class="pin-visual-layer">
-<div class="v-dot" data-index="0"></div>
-<div class="v-dot" data-index="1"></div>
-<div class="v-dot" data-index="2"></div>
-<div class="v-dot" data-index="3"></div>
-<div class="v-dot" data-index="4"></div>
-<div class="v-dot" data-index="5"></div>
-</div>
-</div>
+        <div class="pin-visual-layer">
+          <div class="v-dot" data-index="0"></div>
+          <div class="v-dot" data-index="1"></div>
+          <div class="v-dot" data-index="2"></div>
+          <div class="v-dot" data-index="3"></div>
+          <div class="v-dot" data-index="4"></div>
+          <div class="v-dot" data-index="5"></div>
+        </div>
+      </div>
 
-<!-- Pin Controls -->
-<div class="pin-controls-row">
-<div class="pin-view-ctrl right-aligned">
-<span>পিন দেখুন</span>
-<label class="toggle-switch-thin">
-<input type="checkbox" id="pinViewToggle">
-<span class="slider-thin"></span>
-</label>
-</div>
-</div>
-</div>
+      <!-- Pin Controls -->
+      <div class="pin-controls-row">
+        <div class="pin-view-ctrl right-aligned">
+          <span>পিন দেখুন</span>
+          <label class="toggle-switch-thin">
+            <input type="checkbox" id="pinViewToggle">
+            <span class="slider-thin"></span>
+          </label>
+        </div>
+      </div>
+    </div>
 
-<!-- Virtual Keypad -->
-<div class="virtual-keypad">
-<button class="key-btn" data-key="1">1</button>
-<button class="key-btn" data-key="2">2</button>
-<button class="key-btn" data-key="3">3</button>
-<button class="key-btn" data-key="4">4</button>
-<button class="key-btn" data-key="5">5</button>
-<button class="key-btn" data-key="6">6</button>
-<button class="key-btn" data-key="7">7</button>
-<button class="key-btn" data-key="8">8</button>
-<button class="key-btn" data-key="9">9</button>
-<button class="key-btn action-key backspace" data-key="BACK"><i class="fas fa-backspace"></i></button>
-<button class="key-btn" data-key="0">0</button>
-<button class="key-btn action-key enter-key" id="unlockBtn" data-key="ENTER"><i class="fas fa-arrow-right"></i></button>
-</div>
-</div>
+    <!-- Virtual Keypad -->
+    <div class="virtual-keypad">
+      <button class="key-btn" data-key="1">1</button>
+      <button class="key-btn" data-key="2">2</button>
+      <button class="key-btn" data-key="3">3</button>
+      <button class="key-btn" data-key="4">4</button>
+      <button class="key-btn" data-key="5">5</button>
+      <button class="key-btn" data-key="6">6</button>
+      <button class="key-btn" data-key="7">7</button>
+      <button class="key-btn" data-key="8">8</button>
+      <button class="key-btn" data-key="9">9</button>
+      <button class="key-btn action-key backspace" data-key="BACK"><i class="fas fa-backspace"></i></button>
+      <button class="key-btn" data-key="0">0</button>
+      <button class="key-btn action-key enter-key" id="unlockBtn" data-key="ENTER"><i class="fas fa-arrow-right"></i></button>
+    </div>
+  </div>
 </div>
 
 <!-- 📱 SECTION: MAIN APPLICATION -->
 <div id="app" class="hidden">
 
-<!-- 🧊 SIDEBAR NAVIGATION (Desktop) -->
-<aside id="sidebar" class="sidebar collapsed">
-<div class="sidebar-header">
-<div class="logo-wrapper" id="mainLogo">
-<image src="./images/UFMT.png" class="logo-icon"></image>
-<i class="fas fa-bars-staggered menu-icon"></i>
-</div>
-<button id="closeSidebar" class="close-trigger"><i class="fas fa-xmark"></i></button>
-</div>
-<nav class="nav-links">
-<button class="tabBtn active" data-target="tabInput"><i class="fas fa-plus-circle"></i><span>ডাটা এন্ট্রি</span></button>
-<button class="tabBtn" data-target="tabTable"><i class="fas fa-table-list"></i><span>রিপোর্ট শিট</span></button>
-<button class="tabBtn" data-target="tabGraph"><i class="fas fa-chart-line"></i><span>বিশ্লেষণ</span></button>
-<button class="tabBtn" data-target="tabPin"><i class="fas fa-user-gear"></i><span>সেটিংস</span></button>
-</nav>
-</aside>
+  <!-- 🧊 SIDEBAR NAVIGATION (Desktop) -->
+  <aside id="sidebar" class="sidebar collapsed">
+    <div class="sidebar-header">
+      <div class="logo-wrapper" id="mainLogo">
+        <img src="./images/UFMT.png" class="logo-icon" alt="Logo">
+        <i class="fas fa-bars-staggered menu-icon"></i>
+      </div>
+      <button id="closeSidebar" class="close-trigger"><i class="fas fa-xmark"></i></button>
+    </div>
+    <nav class="nav-links">
+      <button class="tabBtn active" data-target="tabInput"><i class="fas fa-plus-circle"></i><span>ডাটা এন্ট্রি</span></button>
+      <button class="tabBtn" data-target="tabTable"><i class="fas fa-table-list"></i><span>রিপোর্ট শিট</span></button>
+      <button class="tabBtn" data-target="tabGraph"><i class="fas fa-chart-line"></i><span>বিশ্লেষণ</span></button>
+      <button class="tabBtn" data-target="tabPin"><i class="fas fa-user-gear"></i><span>সেটিংস</span></button>
+    </nav>
+  </aside>
 
-<!-- 🚀 MAIN CONTENT AREA -->
-<main class="main-wrapper">
+  <!-- 🚀 MAIN CONTENT AREA -->
+  <main class="main-wrapper">
 
-<!-- 🧢 HEADER -->
-<header class="main-header">
-<div class="header-inner">
-<div class="header-left">
-<image src="./images/UFMT-white-bg.jpg" class="logo-icon"></image>
-<div class="page-info">
-<h2 id="viewTitle">ড্যাশবোর্ড</h2>
-<p id="dateSub"></p>
-</div>
-</div>
-<div class="header-tools">
-<button id="refreshDataBtn" class="icon-btn-round" title="Refresh Data"><i class="fas fa-sync-alt"></i></button>
-<button id="themeToggle" class="theme-switch">
-<span class="sun"><i class="fas fa-sun"></i></span>
-<span class="moon"><i class="fas fa-moon"></i></span>
-</button>
-</div>
-</div>
-</header>
+    <!-- 🧢 HEADER -->
+    <header class="main-header">
+      <div class="header-inner">
+        <div class="header-left">
+          <img src="./images/UFMT-white-bg.jpg" class="logo-icon" alt="Logo">
+          <div class="page-info">
+            <h2 id="viewTitle">ড্যাশবোর্ড</h2>
+            <p id="dateSub"></p>
+          </div>
+        </div>
+        <div class="header-tools">
+          <button id="refreshDataBtn" class="icon-btn-round" title="Refresh Data"><i class="fas fa-sync-alt"></i></button>
+          <button id="themeToggle" class="theme-switch">
+            <span class="sun"><i class="fas fa-sun"></i></span>
+            <span class="moon"><i class="fas fa-moon"></i></span>
+          </button>
+        </div>
+      </div>
+    </header>
 
-<div class="content-body">
-<div id="offlineAlert" class="offline-banner hidden">
-<div class="banner-content">
-<i class="fas fa-wifi-slash"></i>
-<span>আপনি অফলাইনে আছেন। সংরক্ষিত ডাটা দেখানো হচ্ছে। আপডেট ডাটা পেতে ইন্টারনেট সংযোগ করুন।</span>
-</div>
-<button id="closeOfflineAlert" class="banner-close"><i class="fas fa-times"></i></button>
-</div>
+    <div class="content-body">
+      <div id="offlineAlert" class="offline-banner hidden">
+        <div class="banner-content">
+          <i class="fas fa-wifi-slash"></i>
+          <span>আপনি অফলাইনে আছেন। সংরক্ষিত ডাটা দেখানো হচ্ছে। আপডেট ডাটা পেতে ইন্টারনেট সংযোগ করুন।</span>
+        </div>
+        <button id="closeOfflineAlert" class="banner-close"><i class="fas fa-times"></i></button>
+      </div>
 
+      <!-- 🎛️ MODE SWITCHER -->
+      <div id="modeSwitcher" class="mode-switcher">
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="btnModeCourse" data-mode="course">
+            <i class="fas fa-layer-group"></i> কোর্স মেরিট
+          </button>
+          <button class="mode-btn" id="btnModeSubject" data-mode="subject">
+            <i class="fas fa-book"></i> বিষয়ভিত্তিক
+          </button>
+        </div>
+      </div>
 
+      <!-- 🎛️ SECTION: FILTERS (Course Mode) -->
+      <div id="filterBar" class="filter-container course-mode">
+        <div class="filter-grid-wrapper">
+          <div class="filter-inputs-area">
+            <div class="f-group-box">
+              <label>বছর</label>
+              <select id="yearSelect" class="year-select">
+                <option value="">সব বছর</option>
+              </select>
+            </div>
 
-<!-- 🎛️ SECTION: FILTERS -->
-<div id="filterBar" class="filter-container hidden">
-<div class="filter-grid-wrapper">
-<div class="filter-inputs-area">
-<div class="f-group-box">
-<label>বছর</label>
-<select id="yearSelect" class="year-select">
-<option value="">সব বছর</option>
-</select>
-</div>
+            <div class="f-group-box">
+              <label>মাস</label>
+              <select id="monthSelect" class="month-select">
+                <option value="">সব মাস</option>
+                <option value="01">জানুয়ারি</option><option value="02">ফেব্রুয়ারি</option>
+                <option value="03">মার্চ</option><option value="04">এপ্রিল</option>
+                <option value="05">মে</option><option value="06">জুন</option>
+                <option value="07">জুলাই</option><option value="08">আগস্ট</option>
+                <option value="09">সেপ্টেম্বর</option><option value="10">অক্টোবর</option>
+                <option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
+              </select>
+            </div>
 
-<div class="f-group-box">
-<label>মাস</label>
-<select id="monthSelect" class="month-select">
-<option value="">সব মাস</option>
-<option value="01">জানুয়ারি</option><option value="02">ফেব্রুয়ারি</option>
-<option value="03">মার্চ</option><option value="04">এপ্রিল</option>
-<option value="05">মে</option><option value="06">জুন</option>
-<option value="07">জুলাই</option><option value="08">আগস্ট</option>
-<option value="09">সেপ্টেম্বর</option><option value="10">অক্টোবর</option>
-<option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
-</select>
-</div>
+            <div class="f-group-box">
+              <label>শুরু (Range)</label>
+              <input type="date" id="startDate" class="start-date">
+            </div>
 
-<div class="f-group-box">
-<label>শুরু (Range)</label>
-<input type="date" id="startDate" class="start-date">
-</div>
+            <div class="f-group-box">
+              <label>শেষ (Range)</label>
+              <input type="date" id="endDate" class="end-date">
+            </div>
+          </div>
 
-<div class="f-group-box">
-<label>শেষ (Range)</label>
-<input type="date" id="endDate" class="end-date">
-</div>
-</div>
+          <div class="filter-action-area">
+            <button id="resetFilters" class="f-clear">
+              <i class="fas fa-rotate"></i><span>রিসেট</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
-<div class="filter-action-area">
-<button id="resetFilters" class="f-clear">
-<i class="fas fa-rotate"></i><span>রিসেট</span>
-</button>
-</div>
-</div>
-</div>
+      <!-- 🎛️ SECTION: FILTERS (Subject Mode) -->
+      <div id="subjectFilterBar" class="filter-container subject-mode hidden">
+        <div class="filter-grid-wrapper">
+          <div class="filter-inputs-area">
+            <div class="f-group-box">
+              <label>বিষয়</label>
+              <select id="subjectFilter" class="subject-select">
+                <option value="">সব বিষয়</option>
+                <option value="গণিত">গণিত</option>
+                <option value="পদার্থবিজ্ঞান">পদার্থবিজ্ঞান</option>
+                <option value="রসায়ন">রসায়ন</option>
+                <option value="জীববিজ্ঞান">জীববিজ্ঞান</option>
+                <option value="ইংরেজি">ইংরেজি</option>
+                <option value="বাংলা">বাংলা</option>
+                <option value="বাংলাদেশ ও বিশ্বপরিচয়">বাংলাদেশ ও বিশ্বপরিচয়</option>
+                <option value="ধর্ম ও নৈতিক শিক্ষা">ধর্ম ও নৈতিক শিক্ষা</option>
+                <option value="উচ্চতর গণিত">উচ্চতর গণিত</option>
+                <option value="তথ্য ও যোগাযোগ প্রযুক্তি">তথ্য ও যোগাযোগ প্রযুক্তি</option>
+              </select>
+            </div>
 
+            <div class="f-group-box">
+              <label>স্মার্ট ফিল্টার</label>
+              <select id="smartFilter" class="smart-select">
+                <option value="">সব ডাটা</option>
+                <option value="with_marks">শুধু নম্বর দেওয়া</option>
+                <option value="without_marks">নম্বর না দেওয়া</option>
+                <option value="best_marks">সর্বোচ্চ নম্বর</option>
+                <option value="best_rank">সেরা র‍্যাংক</option>
+              </select>
+            </div>
 
-<!-- 📂 SECTION: TAB CONTENTS -->
-<div class="tab-pane">
+            <div class="f-group-box">
+              <label>বছর</label>
+              <select id="subjectYearSelect" class="year-select">
+                <option value="">সব বছর</option>
+              </select>
+            </div>
 
-<!-- 1. DATA ENTRY TAB -->
-<section id="tabInput" class="tab-item active">
-<div class="glass-card">
-<h3 style="margin-bottom: 15px;"><i class="fas fa-pen-to-square"></i> নতুন তথ্য যোগ করুন</h3>
+            <div class="f-group-box">
+              <label>মাস</label>
+              <select id="subjectMonthSelect" class="month-select">
+                <option value="">সব মাস</option>
+                <option value="01">জানুয়ারি</option><option value="02">ফেব্রুয়ারি</option>
+                <option value="03">মার্চ</option><option value="04">এপ্রিল</option>
+                <option value="05">মে</option><option value="06">জুন</option>
+                <option value="07">জুলাই</option><option value="08">আগস্ট</option>
+                <option value="09">সেপ্টেম্বর</option><option value="10">অক্টোবর</option>
+                <option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
+              </select>
+            </div>
+          </div>
 
-<div class="form-row">
-<div class="input-container">
-<label>ব্রাঞ্চ মেরিট</label>
-<input type="number" id="branchVal" placeholder="উদা: ৪২" inputmode="numeric" />
-</div>
-<div class="input-container">
-<label>সেন্ট্রাল মেরিট</label>
-<input type="number" id="centralVal" placeholder="উদা: ১২০০" inputmode="numeric" />
-</div>
-</div>
+          <div class="filter-action-area">
+            <button id="resetSubjectFilters" class="f-clear">
+              <i class="fas fa-rotate"></i><span>রিসেট</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
-<div class="input-toggle-wrapper">
-<div class="toggle-label">
-<i class="far fa-calendar-check"></i> বর্তমান সময় ব্যবহার করুন
-</div>
-<label class="toggle-switch">
-<input type="checkbox" id="useCurrentTimeToggle" checked>
-<span class="toggle-slider"></span>
-</label>
-</div>
+      <!-- 📂 SECTION: TAB CONTENTS -->
+      <div class="tab-pane">
 
-<div id="manualInputArea" class="manual-date-inputs hidden">
-<div class="input-container">
-<label>তারিখ</label>
-<input type="date" id="manualDate">
-</div>
-<div class="input-container">
-<label>সময়</label>
-<input type="time" id="manualTime">
-</div>
-</div>
+        <!-- 1. DATA ENTRY TAB -->
+        <section id="tabInput" class="tab-item active">
+          <!-- Course Mode Entry -->
+          <div id="courseEntrySection" class="course-mode">
+            <div class="glass-card">
+              <h3 style="margin-bottom: 15px;"><i class="fas fa-pen-to-square"></i> নতুন তথ্য যোগ করুন</h3>
 
-<button id="saveEntry" class="btn saveEntry-btn primary-btn btn-block">তথ্য জমা দিন</button>
-</div>
-<div id="homeInstallCard" class="glass-card install-section">
-<div class="install-info">
-<div class="install-icon">
-<i class="fas fa-download"></i>
-</div>
-<div class="install-text">
-<h3>অ্যাপ ইনস্টল করুন</h3>
-<p>
-দ্রুত এবং অফলাইনে ব্যবহারের জন্য অ্যাপটি ইনস্টল করুন।
-</p>
-</div>
-</div>
-<button class="btn install-btn">ইন্সটল</button>
-</div>
-</section>
+              <div class="form-row">
+                <div class="input-container">
+                  <label>ব্রাঞ্চ মেরিট</label>
+                  <input type="number" id="branchVal" placeholder="উদা: ৪২" inputmode="numeric" />
+                </div>
+                <div class="input-container">
+                  <label>সেন্ট্রাল মেরিট</label>
+                  <input type="number" id="centralVal" placeholder="উদা: ১২০০" inputmode="numeric" />
+                </div>
+              </div>
 
-<!-- 2. REPORT TABLE TAB -->
-<section id="tabTable" class="tab-item hidden">
-<div class="pagination-header">
-<div class="p-view-toggle">
-<button class="p-btn active" onclick="setPaginationMode('infinite')">ইনফিনিটি</button>
-<button class="p-btn" onclick="setPaginationMode('pages')">পেজিনেশন</button>
-</div>
+              <div class="input-toggle-wrapper">
+                <div class="toggle-label">
+                  <i class="far fa-calendar-check"></i> বর্তমান সময় ব্যবহার করুন
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="useCurrentTimeToggle" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
 
-<div class="p-rows-selector">
-<span>সারি:</span>
-<select id="rowsPerPage" onchange="handleRowsChange(this.value)">
-<option value="5">৫ টি</option>
-<option value="10" selected>১০ টি</option>
-<option value="15">১৫ টি</option>
-<option value="20">২০ টি</option>
-<option value="30">৩০ টি</option>
-</select>
-</div>
-</div>
+              <div id="manualInputArea" class="manual-date-inputs hidden">
+                <div class="input-container">
+                  <label>তারিখ</label>
+                  <input type="date" id="manualDate">
+                </div>
+                <div class="input-container">
+                  <label>সময়</label>
+                  <input type="time" id="manualTime">
+                </div>
+              </div>
 
-<div class="glass-card no-padding table-responsive-container">
+              <button id="saveEntry" class="btn saveEntry-btn primary-btn btn-block">তথ্য জমা দিন</button>
+            </div>
+          </div>
 
-<div class="table-holder">
-<table id="mainTable" class="custom-table">
-<thead>
-<tr><th>ক্রমিক</th><th>তারিখ ও সময়</th><th>ব্রাঞ্চ</th><th>সেন্ট্রাল</th></tr>
-</thead>
-<tbody id="tableRows"></tbody>
-</table>
-</div>
+          <!-- Subject Mode Entry -->
+          <div id="subjectEntrySection" class="subject-mode hidden">
+            <div class="glass-card">
+              <h3 style="margin-bottom: 15px;"><i class="fas fa-pen-to-square"></i> বিষয়ভিত্তিক তথ্য আপডেট</h3>
 
-</div>
+              <div class="input-container" style="margin-bottom: 15px;">
+                <label>বিষয় নির্বাচন করুন</label>
+                <div class="input-with-icon">
+                  <select id="subjectSelect" class="form-control">
+                    <option value="">বিষয় নির্বাচন করুন...</option>
+                    <!-- Options will be populated by JavaScript -->
+                  </select>
+                </div>
+              </div>
 
-<div id="paginationFooter">
-<div id="infiniteLoader" class="loader hidden">
-<div class="spinner"></div>
-<span>লোডিং...</span>
-</div>
+              <div id="subjectInfoCard" class="subject-info-card hidden">
+                <h4 id="selectedSubjectName">বিষয়</h4>
+                <p class="syllabus-text">
+                  📅 <span id="selectedDate">--/--/----</span>
+                </p>
+                <p class="syllabus-text">
+                  📝 <span id="selectedSyllabus">...</span>
+                </p>
+              </div>
 
-<div id="endMessage" class="end-msg hidden">
-সব তথ্য দেখানো শেষ
-</div>
+              <div class="form-row">
+                <div class="input-container">
+                  <label>প্রাপ্ত নম্বর</label>
+                  <input type="number" id="inpSubObtained" class="form-control" placeholder="Marks">
+                </div>
+                <div class="input-container">
+                  <label>ব্রাঞ্চ মেরিট</label>
+                  <input type="number" id="inpSubBranch" class="form-control" placeholder="Position">
+                </div>
+                <div class="input-container">
+                  <label>কেন্দ্রীয় মেরিট</label>
+                  <input type="number" id="inpSubCentral" class="form-control" placeholder="Position">
+                </div>
+              </div>
 
-<div id="paginationControls" class="pagination-bar hidden"></div>
-</div>
+              <button id="btnSaveSubject" class="btn primary-btn btn-block" style="margin-top:15px">
+                <i class="fas fa-save"></i> আপডেট করুন
+              </button>
+            </div>
+          </div>
 
-</section>
+          <!-- PWA Install Card -->
+          <div id="homeInstallCard" class="glass-card install-section">
+            <div class="install-info">
+              <div class="install-icon">
+                <i class="fas fa-download"></i>
+              </div>
+              <div class="install-text">
+                <h3>অ্যাপ ইনস্টল করুন</h3>
+                <p>
+                  দ্রুত এবং অফলাইনে ব্যবহারের জন্য অ্যাপটি ইনস্টল করুন।
+                </p>
+              </div>
+            </div>
+            <button id="installBtn" class="btn install-btn">ইন্সটল</button>
+          </div>
+        </section>
 
-<!-- 3. ANALYSIS GRAPH TAB -->
-<section id="tabGraph" class="tab-item hidden">
-<div class="summary-grid-6">
-<div class="sum-box primary">
-<span>ব্রাঞ্চ (বর্তমান)</span><h3 id="sumBranch">-</h3>
-</div>
-<div class="sum-box primary">
-<span>সেন্ট্রাল (বর্তমান)</span><h3 id="sumCentral">-</h3>
-</div>
-<div class="sum-box gold">
-<span>সেরা ব্রাঞ্চ</span><h3 id="sumBestBranch">-</h3>
-</div>
-<div class="sum-box gold">
-<span>সেরা সেন্ট্রাল</span><h3 id="sumBestCentral">-</h3>
-</div>
-<div class="sum-box accent">
-<span>সর্বশেষ আপডেট</span><h3 id="sumLastDate">-</h3>
-</div>
-<div class="sum-box accent">
-<span>মোট এন্ট্রি</span><h3 id="sumTotal">0</h3>
-</div>
-</div>
+        <!-- 2. REPORT TABLE TAB -->
+        <section id="tabTable" class="tab-item hidden">
+          <!-- Course Mode Table -->
+          <div id="courseTableSection" class="course-mode">
+            <div class="pagination-header">
+              <div class="p-view-toggle">
+                <button class="p-btn active" onclick="setPaginationMode('infinite')">ইনফিনিটি</button>
+                <button class="p-btn" onclick="setPaginationMode('pages')">পেজিনেশন</button>
+              </div>
 
-<div class="chart-wrapper-grid">
-<div class="glass-card chart-card">
-<div style="display: flex; justify-content: space-between; align-items: flex-start;">
-<div>
-<h4 class="chart-title">ব্রাঞ্চ মেরিট প্রগ্রেস</h4>
-<p class="chart-caption">
-আপনার ব্রাঞ্চ পজিশন এর ধারাবাহিক পরিবর্তন
-</p>
-</div>
-<button class="expand-chart-btn hidden" id="btnExpandBranch" title="Expand Graph"><i class="fas fa-expand"></i></button>
-</div>
-<div class="chart-container">
-<canvas id="branchChart"></canvas>
-</div>
-</div>
+              <div class="p-rows-selector">
+                <span>সারি:</span>
+                <select id="rowsPerPage" onchange="handleRowsChange(this.value)">
+                  <option value="5">৫ টি</option>
+                  <option value="10" selected>১০ টি</option>
+                  <option value="15">১৫ টি</option>
+                  <option value="20">২০ টি</option>
+                  <option value="30">৩০ টি</option>
+                </select>
+              </div>
+            </div>
 
-<div class="glass-card chart-card">
-<div style="display: flex; justify-content: space-between; align-items: flex-start;">
-<div>
-<h4 class="chart-title">সেন্ট্রাল মেরিট প্রগ্রেস</h4>
-<p class="chart-caption">
-আপনার সেন্ট্রাল পজিশন এর ধারাবাহিক পরিবর্তন
-</p>
-</div>
-<button class="expand-chart-btn hidden" id="btnExpandCentral" title="Expand Graph"><i class="fas fa-expand"></i></button>
-</div>
-<div class="chart-container">
-<canvas id="centralChart"></canvas>
-</div>
-</div>
-</div>
+            <div class="glass-card no-padding table-responsive-container">
+              <div class="table-holder">
+                <table id="mainTable" class="custom-table">
+                  <thead>
+                    <tr><th>ক্রমিক</th><th>তারিখ ও সময়</th><th>ব্রাঞ্চ</th><th>সেন্ট্রাল</th></tr>
+                  </thead>
+                  <tbody id="tableRows"></tbody>
+                </table>
+              </div>
+            </div>
 
-<div class="glass-card analysis-guide-box">
-<h4 style="margin-bottom: 12px; font-size: 14px;"><i class="fas fa-circle-info"></i> গ্রাফ বিশ্লেষণ নির্দেশিকা</h4>
-<div class="guide-content">
-<p class="guide-caption">
-গ্রাফটি পরীক্ষাভিত্তিক মেধাক্রম ট্র্যাক করতে তৈরি, যা সময়ের সাথে অবস্থানের উন্নতি বা অবনতি স্পষ্টভাবে বুঝতে সাহায্য করে।
-</p>
+            <div id="paginationFooter">
+              <div id="infiniteLoader" class="loader hidden">
+                <div class="spinner"></div>
+                <span>লোডিং...</span>
+              </div>
 
-<div class="guide-item">
-<i class="fas fa-arrow-trend-down text-success"></i> গ্রাফের রেখা নিচের দিকে নামলে মেধাক্রমের উন্নতি (পজিশন এগিয়ে আসা) বোঝায়।
-</div>
-<div class="guide-item">
-<i class="fas fa-arrow-trend-up text-danger"></i> গ্রাফের রেখা উপরের দিকে উঠলে মেধাক্রমের অবনতি (পজিশন পিছিয়ে যাওয়া) বোঝায়।
-</div>
-<div class="guide-item">
-<i class="fas fa-chart-line text-primary"></i> X অক্ষ বরাবর রিপোর্ট নম্বর এবং Y অক্ষ বরাবর আপনার মেধাক্রম (Rank) দেখানো হয়েছে।
-</div>
-<div class="guide-item">
-<i class="fa-solid fa-r primary"></i> এখানে R দ্বারা  Report Number বা ক্রমিক নম্বরকে বোঋানে হয়েছে। উদা - R-7, R-16
-</div>
-</div>
-</div>
-</section>
+              <div id="endMessage" class="end-msg hidden">
+                সব তথ্য দেখানো শেষ
+              </div>
 
-<!-- 4. SETTINGS TAB -->
+              <div id="paginationControls" class="pagination-bar hidden"></div>
+            </div>
+          </div>
 
-<section id="tabPin" class="tab-item hidden">
+          <!-- Subject Mode Table -->
+          <div id="subjectTableSection" class="subject-mode hidden">
+            <div class="pagination-header">
+              <div class="p-view-toggle">
+                <button class="p-btn active" onclick="setSubjectPaginationMode('infinite')">ইনফিনিটি</button>
+                <button class="p-btn" onclick="setSubjectPaginationMode('pages')">পেজিনেশন</button>
+              </div>
 
-<div id="pwaInstallBtn" class="glass-card install-section">
-<div class="install-info">
-<div class="install-icon">
-<i class="fas fa-download"></i>
-</div>
-<div class="install-text">
-<h3>অ্যাপ ইনস্টল করুন</h3>
-<p>
-দ্রুত এবং অফলাইনে ব্যবহারের জন্য অ্যাপটি ইনস্টল করুন।
-</p>
-</div>
-</div>
-<button class="btn install-btn">ইন্সটল</button>
-</div>
+              <div class="p-rows-selector">
+                <span>সারি:</span>
+                <select id="subjectRowsPerPage" onchange="handleSubjectRowsChange(this.value)">
+                  <option value="5">৫ টি</option>
+                  <option value="10" selected>১০ টি</option>
+                  <option value="15">১৫ টি</option>
+                  <option value="20">২০ টি</option>
+                  <option value="30">৩০ টি</option>
+                </select>
+              </div>
+            </div>
 
-<div class="glass-card config-row-item">
-<div class="set-info">
-<h3><i class="fas fa-moon"></i> ডার্ক মোড</h3><p>
-চোখের আরামের জন্য ব্যবহার করুন
-</p>
-</div>
-<label class="toggle-switch"><input type="checkbox" id="darkToggleSet"><span class="toggle-slider"></span></label>
-</div>
+            <div class="glass-card no-padding table-responsive-container">
+              <div class="table-holder">
+                <table id="subjectTable" class="custom-table">
+                  <thead>
+                    <tr>
+                      <th>নং</th>
+                      <th>বিষয় ও সিলেবাস</th>
+                      <th>তারিখ</th>
+                      <th>নম্বর</th>
+                      <th>ব্রাঞ্চ</th>
+                      <th>কেন্দ্রীয়</th>
+                    </tr>
+                  </thead>
+                  <tbody id="subjectTableRows"></tbody>
+                </table>
+              </div>
+            </div>
 
-<div class="glass-card config-row-item">
-<div class="set-info">
-<h3><i class="fas fa-shield-halved"></i> অটো পিন ভেরিফাই</h3><p>
-৬ ডিজিট হলেই অটো চেক হবে
-</p>
-</div>
-<label class="toggle-switch"><input type="checkbox" id="pinAutoToggleSet"><span class="toggle-slider"></span></label>
-</div>
+            <div id="subjectPaginationFooter">
+              <div id="subjectInfiniteLoader" class="loader hidden">
+                <div class="spinner"></div>
+                <span>লোডিং...</span>
+              </div>
 
-<div class="glass-card config-row-item">
-<div class="set-info">
-<h3><i class="fas fa-bell"></i> নোটিফিকেশন</h3><p>
-রিমাইন্ডার অন বা অফ করুন
-</p>
-</div>
-<label class="toggle-switch"><input type="checkbox" id="notifEnableToggle"><span class="toggle-slider"></span></label>
-</div>
+              <div id="subjectEndMessage" class="end-msg hidden">
+                সব তথ্য দেখানো শেষ
+              </div>
 
-<div class="glass-card">
-<h3><i class="fas fa-clock"></i> রিমাইন্ডার শিডিউল</h3>
-<div class="reminder-ui">
-<div class="rem-input-box">
-<input type="time" id="notifTime">
-<button id="addTimeBtn" class="add-rem-btn"><i class="fas fa-plus"></i></button>
-</div>
-<div id="notifList" class="reminder-list"></div>
-</div>
-</div>
+              <div id="subjectPaginationControls" class="pagination-bar hidden"></div>
+            </div>
+          </div>
+        </section>
 
-<div class="glass-card">
-<h3><i class="fas fa-lock"></i> পিন পরিবর্তন</h3>
-<div class="pin-change-form">
-<div class="input-with-icon">
-<input type="password" id="oldPinSet" placeholder="বর্তমান পিন" maxlength="6" inputmode="numeric"><button class="pass-toggle" onclick="togglePass('oldPinSet')"><i class="fas fa-eye"></i></button>
-</div>
-<div class="input-with-icon">
-<input type="password" id="newPinSet" placeholder="নতুন পিন (সংখ্যা)" maxlength="6" inputmode="numeric">
-</div>
-<div class="input-with-icon">
-<input type="password" id="confirmPinSet" placeholder="নিশ্চিত করুন" maxlength="6" inputmode="numeric">
-</div>
-<button id="changePinBtn" class="btn primary-btn">আপডেট</button>
-</div>
-</div>
+        <!-- 3. ANALYSIS GRAPH TAB -->
+        <section id="tabGraph" class="tab-item hidden">
+          <!-- Course Mode Analysis -->
+          <div id="courseAnalysisSection" class="course-mode">
+            <div class="summary-grid-6">
+              <div class="sum-box primary">
+                <span>ব্রাঞ্চ (বর্তমান)</span><h3 id="sumBranch">-</h3>
+              </div>
+              <div class="sum-box primary">
+                <span>সেন্ট্রাল (বর্তমান)</span><h3 id="sumCentral">-</h3>
+              </div>
+              <div class="sum-box gold">
+                <span>সেরা ব্রাঞ্চ</span><h3 id="sumBestBranch">-</h3>
+              </div>
+              <div class="sum-box gold">
+                <span>সেরা সেন্ট্রাল</span><h3 id="sumBestCentral">-</h3>
+              </div>
+              <div class="sum-box accent">
+                <span>সর্বশেষ আপডেট</span><h3 id="sumLastDate">-</h3>
+              </div>
+              <div class="sum-box accent">
+                <span>মোট এন্ট্রি</span><h3 id="sumTotal">0</h3>
+              </div>
+            </div>
 
-<div class="glass-card config-row-item reset-card">
-<div class="set-info">
-<h3 class="text-danger"><i class="fas fa-trash"></i> ফ্যাক্টরি রিসেট</h3><p>
-সিস্টেমের সকল ডাটা মুছে ফেলুন
-</p>
-</div>
-<button id="factoryResetBtn" class="btn danger-btn-alt">রিসেট</button>
-</div>
-</section>
-</div>
-</div>
+            <div class="chart-wrapper-grid">
+              <div class="glass-card chart-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div>
+                    <h4 class="chart-title">ব্রাঞ্চ মেরিট প্রগ্রেস</h4>
+                    <p class="chart-caption">
+                      আপনার ব্রাঞ্চ পজিশন এর ধারাবাহিক পরিবর্তন
+                    </p>
+                  </div>
+                  <button class="expand-chart-btn hidden" id="btnExpandBranch" title="Expand Graph"><i class="fas fa-expand"></i></button>
+                </div>
+                <div class="chart-container">
+                  <canvas id="branchChart"></canvas>
+                </div>
+              </div>
 
-<!-- 📱 SECTION: MOBILE BOTTOM NAV -->
-<nav class="mobile-bottom-nav">
-<button class="m-nav-link active" data-target="tabInput"><i class="fas fa-circle-plus"></i><span>এন্ট্রি</span></button>
-<button class="m-nav-link" data-target="tabTable"><i class="fas fa-table-list"></i><span>রিপোর্ট</span></button>
-<button class="m-nav-link" data-target="tabGraph"><i class="fas fa-chart-pie"></i><span>চার্ট</span></button>
-<button class="m-nav-link" data-target="tabPin"><i class="fas fa-sliders"></i><span>সেটিংস</span></button>
-</nav>
-</main>
+              <div class="glass-card chart-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div>
+                    <h4 class="chart-title">সেন্ট্রাল মেরিট প্রগ্রেস</h4>
+                    <p class="chart-caption">
+                      আপনার সেন্ট্রাল পজিশন এর ধারাবাহিক পরিবর্তন
+                    </p>
+                  </div>
+                  <button class="expand-chart-btn hidden" id="btnExpandCentral" title="Expand Graph"><i class="fas fa-expand"></i></button>
+                </div>
+                <div class="chart-container">
+                  <canvas id="centralChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card analysis-guide-box">
+              <h4 style="margin-bottom: 12px; font-size: 14px;"><i class="fas fa-circle-info"></i> গ্রাফ বিশ্লেষণ নির্দেশিকা</h4>
+              <div class="guide-content">
+                <p class="guide-caption">
+                  গ্রাফটি পরীক্ষাভিত্তিক মেধাক্রম ট্র্যাক করতে তৈরি, যা সময়ের সাথে অবস্থানের উন্নতি বা অবনতি স্পষ্টভাবে বুঝতে সাহায্য করে।
+                </p>
+
+                <div class="guide-item">
+                  <i class="fas fa-arrow-trend-down text-success"></i> গ্রাফের রেখা নিচের দিকে নামলে মেধাক্রমের উন্নতি (পজিশন এগিয়ে আসা) বোঝায়।
+                </div>
+                <div class="guide-item">
+                  <i class="fas fa-arrow-trend-up text-danger"></i> গ্রাফের রেখা উপরের দিকে উঠলে মেধাক্রমের অবনতি (পজিশন পিছিয়ে যাওয়া) বোঝায়।
+                </div>
+                <div class="guide-item">
+                  <i class="fas fa-chart-line text-primary"></i> X অক্ষ বরাবর রিপোর্ট নম্বর এবং Y অক্ষ বরাবর আপনার মেধাক্রম (Rank) দেখানো হয়েছে।
+                </div>
+                <div class="guide-item">
+                  <i class="fa-solid fa-r primary"></i> এখানে R দ্বারা Report Number বা ক্রমিক নম্বরকে বোঝানো হয়েছে। উদা - R-7, R-16
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subject Mode Analysis -->
+          <div id="subjectAnalysisSection" class="subject-mode hidden">
+            <div class="summary-grid-6">
+              <div class="sum-box primary">
+                <span>মোট পরীক্ষা</span><h3 id="sumSubjectExams">0</h3>
+              </div>
+              <div class="sum-box primary">
+                <span>পরীক্ষায় অংশগ্রহণ</span><h3 id="sumSubjectAttempted">0</h3>
+              </div>
+              <div class="sum-box gold">
+                <span>গড় নম্বর (%)</span><h3 id="sumSubjectAverage">0%</h3>
+              </div>
+              <div class="sum-box gold">
+                <span>সেরা ব্রাঞ্চ</span><h3 id="sumSubjectBestBranch">-</h3>
+              </div>
+              <div class="sum-box accent">
+                <span>সেরা কেন্দ্রীয়</span><h3 id="sumSubjectBestCentral">-</h3>
+              </div>
+              <div class="sum-box accent">
+                <span>জিপিএ</span><h3 id="sumSubjectGPA">-</h3>
+              </div>
+            </div>
+
+            <div class="chart-wrapper-grid">
+              <div class="glass-card chart-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div>
+                    <h4 class="chart-title">বিষয়ভিত্তিক নম্বর</h4>
+                    <p class="chart-caption">
+                      বিষয় অনুযায়ী প্রাপ্ত নম্বরের গ্রাফ
+                    </p>
+                  </div>
+                </div>
+                <div class="chart-container">
+                  <canvas id="subjectMarksChart"></canvas>
+                </div>
+              </div>
+
+              <div class="glass-card chart-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div>
+                    <h4 class="chart-title">বিষয়ভিত্তিক মেরিট</h4>
+                    <p class="chart-caption">
+                      বিষয় অনুযায়ী ব্রাঞ্চ ও কেন্দ্রীয় মেরিট
+                    </p>
+                  </div>
+                </div>
+                <div class="chart-container">
+                  <canvas id="subjectMeritChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card analysis-guide-box">
+              <h4 style="margin-bottom: 12px; font-size: 14px;"><i class="fas fa-circle-info"></i> গ্রাফ বিশ্লেষণ নির্দেশিকা</h4>
+              <div class="guide-content">
+                <p class="guide-caption">
+                  গ্রাফটি বিষয়ভিত্তিক প্রাপ্ত নম্বর এবং মেরিট ট্র্যাক করতে তৈরি, যা প্রতিটি বিষয়ে আপনার পারফরম্যান্স বুঝতে সাহায্য করে।
+                </p>
+
+                <div class="guide-item">
+                  <i class="fas fa-chart-bar text-primary"></i> বাম গ্রাফে বিষয় অনুযায়ী প্রাপ্ত নম্বর দেখানো হয়েছে।
+                </div>
+                <div class="guide-item">
+                  <i class="fas fa-chart-line text-success"></i> ডান গ্রাফে বিষয় অনুযায়ী ব্রাঞ্চ ও কেন্দ্রীয় মেরিট দেখানো হয়েছে।
+                </div>
+                <div class="guide-item">
+                  <i class="fas fa-percentage text-warning"></i> গড় নম্বর সমস্ত বিষয়ের প্রাপ্ত নম্বরের গড়।
+                </div>
+                <div class="guide-item">
+                  <i class="fas fa-star text-gold"></i> জিপিএ ৪র্থ বিষয় সহ বা বাদে হিসাব করা যায় (সেটিংসে পরিবর্তনযোগ্য)।
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. SETTINGS TAB -->
+        <section id="tabPin" class="tab-item hidden">
+          <!-- PWA Install -->
+          <div id="pwaInstallBtn" class="glass-card install-section">
+            <div class="install-info">
+              <div class="install-icon">
+                <i class="fas fa-download"></i>
+              </div>
+              <div class="install-text">
+                <h3>অ্যাপ ইনস্টল করুন</h3>
+                <p>
+                  দ্রুত এবং অফলাইনে ব্যবহারের জন্য অ্যাপটি ইনস্টল করুন।
+                </p>
+              </div>
+            </div>
+            <button id="installBtn2" class="btn install-btn">ইন্সটল</button>
+          </div>
+
+          <!-- Theme Settings -->
+          <div class="glass-card config-row-item">
+            <div class="set-info">
+              <h3><i class="fas fa-moon"></i> ডার্ক মোড</h3>
+              <p>চোখের আরামের জন্য ব্যবহার করুন</p>
+            </div>
+            <label class="toggle-switch"><input type="checkbox" id="darkToggleSet"><span class="toggle-slider"></span></label>
+          </div>
+
+          <!-- PIN Settings -->
+          <div class="glass-card config-row-item">
+            <div class="set-info">
+              <h3><i class="fas fa-shield-halved"></i> অটো পিন ভেরিফাই</h3>
+              <p>৬ ডিজিট হলেই অটো চেক হবে</p>
+            </div>
+            <label class="toggle-switch"><input type="checkbox" id="pinAutoToggleSet"><span class="toggle-slider"></span></label>
+          </div>
+
+          <!-- Notification Settings -->
+          <div class="glass-card config-row-item">
+            <div class="set-info">
+              <h3><i class="fas fa-bell"></i> নোটিফিকেশন</h3>
+              <p>রিমাইন্ডার অন বা অফ করুন</p>
+            </div>
+            <label class="toggle-switch"><input type="checkbox" id="notifEnableToggle"><span class="toggle-slider"></span></label>
+          </div>
+
+          <!-- Subject Mode Settings -->
+          <div class="glass-card config-row-item">
+            <div class="set-info">
+              <h3><i class="fas fa-calculator"></i> ৪র্থ বিষয় জিপিএ তে যোগ</h3>
+              <p>জিপিএ গণনায় ৪র্থ বিষয় যোগ করুন</p>
+            </div>
+            <label class="toggle-switch"><input type="checkbox" id="includeFourthSubject"><span class="toggle-slider"></span></label>
+          </div>
+
+          <div class="glass-card config-row-item" id="fourthSubjectContainer">
+            <div class="set-info">
+              <h3><i class="fas fa-book"></i> ৪র্থ বিষয় নির্বাচন</h3>
+              <p>জিপিএ গণনার জন্য ৪র্থ বিষয়</p>
+            </div>
+            <select id="fourthSubjectSelect" class="form-control">
+              <option value="জীববিজ্ঞান">জীববিজ্ঞান</option>
+              <option value="উচ্চতর গণিত">উচ্চতর গণিত</option>
+            </select>
+          </div>
+
+          <!-- Data Export -->
+          <div class="glass-card">
+            <h3><i class="fas fa-file-export"></i> ডাটা এক্সপোর্ট</h3>
+            <p style="margin-bottom: 15px; font-size: 13px; color: var(--text-muted);">
+              আপনার ডাটা বিভিন্ন ফরমেটে ডাউনলোড করুন
+            </p>
+            
+            <div class="input-container" style="margin-bottom: 15px;">
+              <label>ডাটা টাইপ</label>
+              <select id="exportDataType" class="form-control">
+                <option value="all">সকল ডাটা</option>
+                <option value="subject">বিষয়ভিত্তিক ডাটা</option>
+                <option value="course">কোর্স মেরিট ডাটা</option>
+              </select>
+            </div>
+
+            <div class="export-buttons">
+              <button id="exportExcel" class="btn export-btn excel-btn">
+                <i class="fas fa-file-excel"></i> এক্সেল সীট
+              </button>
+              <button id="exportPDF" class="btn export-btn pdf-btn">
+                <i class="fas fa-file-pdf"></i> পিডিএফ
+              </button>
+              <button id="exportPrint" class="btn export-btn print-btn">
+                <i class="fas fa-print"></i> প্রিন্ট
+              </button>
+            </div>
+          </div>
+
+          <!-- Reminder Schedule -->
+          <div class="glass-card">
+            <h3><i class="fas fa-clock"></i> রিমাইন্ডার শিডিউল</h3>
+            <div class="reminder-ui">
+              <div class="rem-input-box">
+                <input type="time" id="notifTime">
+                <button id="addTimeBtn" class="add-rem-btn"><i class="fas fa-plus"></i></button>
+              </div>
+              <div id="notifList" class="reminder-list"></div>
+            </div>
+          </div>
+
+          <!-- PIN Change -->
+          <div class="glass-card">
+            <h3><i class="fas fa-lock"></i> পিন পরিবর্তন</h3>
+            <div class="pin-change-form">
+              <div class="input-with-icon">
+                <input type="password" id="oldPinSet" placeholder="বর্তমান পিন" maxlength="6" inputmode="numeric">
+                <button class="pass-toggle" onclick="togglePass('oldPinSet')"><i class="fas fa-eye"></i></button>
+              </div>
+              <div class="input-with-icon">
+                <input type="password" id="newPinSet" placeholder="নতুন পিন (সংখ্যা)" maxlength="6" inputmode="numeric">
+              </div>
+              <div class="input-with-icon">
+                <input type="password" id="confirmPinSet" placeholder="নিশ্চিত করুন" maxlength="6" inputmode="numeric">
+              </div>
+              <button id="changePinBtn" class="btn primary-btn">আপডেট</button>
+            </div>
+          </div>
+
+          <!-- Web Info -->
+          <div class="glass-card web-info-card">
+            <h3><i class="fas fa-info-circle"></i> ওয়েব তথ্য</h3>
+            <div class="web-info-content">
+              <div class="info-item">
+                <span class="info-label">ওয়েব টাইটেল:</span>
+                <span class="info-value">Udvash FMT Tracker (SSC-26)</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">ওয়েব এ্যাপ ভার্সন:</span>
+                <span class="info-value">V18.0</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">ডেভেলপার:</span>
+                <a href="https://mdturzo.odoo.com" target="_blank" class="info-link">Muhtasim RRahman(Turzo)</a>
+              </div>
+              <div class="info-item">
+                <span class="info-label">GitHub রিপোজিটরি:</span>
+                <a href="https://github.com/muhtasim-rahman/UFMT-SSC26" target="_blank" class="info-link">এই ওয়েব প্রজেক্টের GitHub Repository</a>
+              </div>
+              <div class="info-item">
+                <span class="info-label">যোগাযোগ:</span>
+                <a href="https://mdturzo.odoo.com/contact" target="_blank" class="info-link">যোগাযোগ পেজ</a>
+              </div>
+            </div>
+            <button id="userManualBtn" class="btn secondary-btn" style="margin-top: 15px;">
+              <i class="fas fa-book"></i> ব্যবহার নির্দেশিকা
+            </button>
+          </div>
+
+          <!-- Factory Reset -->
+          <div class="glass-card config-row-item reset-card">
+            <div class="set-info">
+              <h3 class="text-danger"><i class="fas fa-trash"></i> ফ্যাক্টরি রিসেট</h3>
+              <p>সিস্টেমের সকল ডাটা মুছে ফেলুন</p>
+            </div>
+            <button id="factoryResetBtn" class="btn danger-btn-alt">রিসেট</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- 📱 SECTION: MOBILE BOTTOM NAV -->
+    <nav class="mobile-bottom-nav">
+      <button class="m-nav-link active" data-target="tabInput"><i class="fas fa-circle-plus"></i><span>এন্ট্রি</span></button>
+      <button class="m-nav-link" data-target="tabTable"><i class="fas fa-table-list"></i><span>রিপোর্ট</span></button>
+      <button class="m-nav-link" data-target="tabGraph"><i class="fas fa-chart-pie"></i><span>চার্ট</span></button>
+      <button class="m-nav-link" data-target="tabPin"><i class="fas fa-sliders"></i><span>সেটিংস</span></button>
+    </nav>
+  </main>
 </div>
 
 <!-- 🧩 SECTION: MODALS & OVERLAYS -->
 <div id="standardModal" class="reset-overlay hidden">
-<div id="modalContent" class="reset-popup"></div>
+  <div id="modalContent" class="reset-popup"></div>
 </div>
 
 <div id="statusToast" class="toast"></div>
 
 <!-- 🔌 SECTION: SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="app.js"></script>
 <script src="sw.js"></script>
 </body>
