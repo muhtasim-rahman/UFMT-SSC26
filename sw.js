@@ -1,7 +1,6 @@
 // Service Worker for UFMT-SSC26 — robust caching and relative paths
-
-const CACHE_NAME = 'ufmt-ssc26-v2';
-const BASE = './'; // keep relative to service worker scope (index.html location)
+const CACHE_NAME = 'ufmt-ssc26-v3';
+const BASE = '/UFMT-SSC26/'; // align with manifest scope and where sw.js lives
 const urlsToCache = [
   BASE,
   BASE + 'index.html',
@@ -35,6 +34,13 @@ self.addEventListener('install', event => {
   );
 });
 
+// Allow page to tell SW to skipWaiting (useful on deploy)
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Activate: clear old caches
 self.addEventListener('activate', event => {
   const keep = [CACHE_NAME];
@@ -57,7 +63,7 @@ self.addEventListener('fetch', event => {
         if (networkResponse && networkResponse.status === 200) {
           const clone = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, clone).catch(() => {/* ignore cache put errors */});
+            cache.put(event.request, clone).catch(() => { /* ignore cache put errors */ });
           });
         }
         return networkResponse;
