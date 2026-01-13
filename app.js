@@ -1288,39 +1288,56 @@ function finalReset() {
 ========================== */
 
 function initExportFunctions() {
-    $('#exportExcel').addEventListener('click', exportToExcel);
-    $('#exportPDF').addEventListener('click', exportToPDF);
-    $('#exportPrint').addEventListener('click', printData);
+    // Safe null checks before adding event listeners
+    const exportExcelBtn = $('#exportExcel');
+    const exportPDFBtn = $('#exportPDF');
+    const exportPrintBtn = $('#exportPrint');
     
-    $('#showOnlyWithMarks').checked = showOnlyWithMarks;
-    $('#includeFourthSubject').checked = includeFourthSubject;
-    $('#fourthSubjectSelect').value = fourthSubject;
+    if (exportExcelBtn) exportExcelBtn.addEventListener('click', exportToExcel);
+    if (exportPDFBtn) exportPDFBtn.addEventListener('click', exportToPDF);
+    if (exportPrintBtn) exportPrintBtn.addEventListener('click', printData);
+    
+    // Fixed: Safe checks before setting . checked property
+    const showMarksCheckbox = $('#showOnlyWithMarks');
+    const fourthSubjectCheckbox = $('#includeFourthSubject');
+    const fourthSubjectSelect = $('#fourthSubjectSelect');
+    
+    if (showMarksCheckbox) {
+        showMarksCheckbox. checked = showOnlyWithMarks;
+        showMarksCheckbox.addEventListener('change', function(e) {
+            showOnlyWithMarks = e.target.checked;
+            localStorage.setItem(LS_SHOW_ONLY_MARKS, showOnlyWithMarks);
+            processSubjectData();
+            renderSubjectDashboard();
+            showToast('সেটিংস সেভ করা হয়েছে');
+        });
+    }
+    
+    if (fourthSubjectCheckbox) {
+        fourthSubjectCheckbox.checked = includeFourthSubject;
+        fourthSubjectCheckbox.addEventListener('change', function(e) {
+            includeFourthSubject = e.target.checked;
+            localStorage.setItem(LS_INCLUDE_FOURTH, includeFourthSubject);
+            updateFourthSubjectContainer();
+            renderSubjectDashboard();
+            showToast('সেটিংস সেভ করা হয়েছে');
+        });
+    }
+    
+    if (fourthSubjectSelect) {
+        fourthSubjectSelect.value = fourthSubject;
+        fourthSubjectSelect.addEventListener('change', function(e) {
+            fourthSubject = e.target. value;
+            localStorage.setItem(LS_FOURTH_SUBJECT, fourthSubject);
+            renderSubjectDashboard();
+            showToast('৪র্থ বিষয় সেভ করা হয়েছে');
+        });
+    }
+    
     updateFourthSubjectContainer();
     
-    $('#showOnlyWithMarks').addEventListener('change', function(e) {
-        showOnlyWithMarks = e.target.checked;
-        localStorage.setItem(LS_SHOW_ONLY_MARKS, showOnlyWithMarks);
-        processSubjectData();
-        renderSubjectDashboard();
-        showToast('সেটিংস সেভ করা হয়েছে');
-    });
-    
-    $('#includeFourthSubject').addEventListener('change', function(e) {
-        includeFourthSubject = e.target.checked;
-        localStorage.setItem(LS_INCLUDE_FOURTH, includeFourthSubject);
-        updateFourthSubjectContainer();
-        renderSubjectDashboard();
-        showToast('সেটিংস সেভ করা হয়েছে');
-    });
-    
-    $('#fourthSubjectSelect').addEventListener('change', function(e) {
-        fourthSubject = e.target.value;
-        localStorage.setItem(LS_FOURTH_SUBJECT, fourthSubject);
-        renderSubjectDashboard();
-        showToast('৪র্থ বিষয় সেভ করা হয়েছে');
-    });
-    
-    $('#userManualBtn').addEventListener('click', showUserManual);
+    const userManualBtn = $('#userManualBtn');
+    if (userManualBtn) userManualBtn.addEventListener('click', showUserManual);
 }
 
 function updateFourthSubjectContainer() {

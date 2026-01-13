@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fmt-tracker-pro-v35'; // Version updated for fresh install
+const CACHE_NAME = 'fmt-tracker-pro-v36'; // Updated version for fresh cache
 const urlsToCache = [
   '/',
   '/index.html',
@@ -13,53 +13,78 @@ const urlsToCache = [
   './images/web-banner.jpg'
 ];
 
-// Install Event
+// Install Event - Fixed with better error handling
 self.addEventListener('install', event => {
-  event.waitUntil(
+  event. waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        // Only cache essential files that exist
+        return Promise.all(
+          urlsToCache.map(url => {
+            return fetch(url)
+              .then(response => {
+                if (response && response.status === 200) {
+                  return cache.put(url, response);
+                }
+              })
+              .catch(err => {
+                console.warn(`Failed to cache ${url}:`, err);
+              });
+          })
+        );
+      })
+      .catch(err => {
+        console.error('Cache open failed:', err);
       })
   );
+  self.skipWaiting();
 });
 
-// Fetch Event - PC installer jonno eta khubai guruttopurno
+// Fetch Event - Network first, then cache
 self.addEventListener('fetch', event => {
+  const { request } = event;
+  
+  // Skip non-GET requests
+  if (request.method !== 'GET') return;
+  
   event.respondWith(
-    caches.match(event.request)
+    fetch(request)
       .then(response => {
-        if (response) {
-          return response;
+        if (!response || response.status !== 200) {
+          return caches.match(request);
         }
-
-        const fetchRequest = event.request.clone();
-
-        return fetch(fetchRequest)
+        
+        // Clone the response
+        const responseClone = response.clone();
+        
+        // Cache successful responses
+        caches.open(CACHE_NAME)
+          .then(cache => {
+            cache.put(request, responseClone);
+          });
+        
+        return response;
+      })
+      .catch(() => {
+        // Return cached version if network fails
+        return caches.match(request)
           .then(response => {
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          })
-          .catch(() => {
-            // Image load fail hole default logo dekhabe
-            if (event.request.url.includes('/images/')) {
+            if (response) return response;
+            
+            // Fallback for images
+            if (request.destination === 'image') {
               return caches.match('./images/UFMT.png');
             }
+            
+            // Return offline page if available
+            return caches.match('/index.html');
           });
       })
   );
 });
 
-// Activate Event - Purano cache delete kora
+// Activate Event - Clean up old caches
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -67,10 +92,12 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     })
   );
+  self.clients.claim();
 });
