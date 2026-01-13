@@ -1,103 +1,89 @@
-const CACHE_NAME = 'fmt-tracker-pro-v36'; // Updated version for fresh cache
+// Service Worker for UFMT-SSC26 — robust caching and relative paths
+
+const CACHE_NAME = 'ufmt-ssc26-v2';
+const BASE = './'; // keep relative to service worker scope (index.html location)
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/app.js',
-  '/sw.js',
-  './images/favicon.ico',
-  './images/UFMT.png',
-  './images/UFMT.jpg',
-  './images/UFMT-narrow.png',
-  './images/UFMT-narrow.jpg',
-  './images/web-banner.jpg'
+  BASE,
+  BASE + 'index.html',
+  BASE + 'style.css',
+  BASE + 'app.js',
+  BASE + 'manifest.json',
+  BASE + 'images/favicon.ico',
+  BASE + 'images/UFMT.png',
+  BASE + 'images/UFMT.jpg',
+  BASE + 'images/UFMT-narrow.png',
+  BASE + 'images/UFMT-narrow.jpg',
+  BASE + 'images/web-banner.jpg'
 ];
 
-// Install Event - Fixed with better error handling
+// Install: cache resources but don't fail entire install when one resource fails
 self.addEventListener('install', event => {
-  event. waitUntil(
+  event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache');
-        // Only cache essential files that exist
-        return Promise.all(
-          urlsToCache.map(url => {
-            return fetch(url)
-              .then(response => {
-                if (response && response.status === 200) {
-                  return cache.put(url, response);
-                }
-              })
-              .catch(err => {
-                console.warn(`Failed to cache ${url}:`, err);
-              });
-          })
-        );
+        // cache.addAll can fail when one resource is missing; use Promise.allSettled
+        return Promise.allSettled(urlsToCache.map(u => cache.add(u)))
+          .then(results => {
+            results.forEach((r, i) => {
+              if (r.status === 'rejected') {
+                console.warn('Failed to cache:', urlsToCache[i], r.reason);
+              }
+            });
+          });
       })
-      .catch(err => {
-        console.error('Cache open failed:', err);
-      })
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-// Fetch Event - Network first, then cache
+// Activate: clear old caches
+self.addEventListener('activate', event => {
+  const keep = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.map(k => keep.includes(k) ? null : caches.delete(k))
+    )).then(() => self.clients.claim())
+  );
+});
+
+// Fetch: network-first for freshness, fallback to cache, provide image/page fallbacks
 self.addEventListener('fetch', event => {
-  const { request } = event;
-  
-  // Skip non-GET requests
-  if (request.method !== 'GET') return;
-  
+  // Only handle GET requests from our scope (relative paths); leave cross-origin alone
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
-    fetch(request)
-      .then(response => {
-        if (!response || response.status !== 200) {
-          return caches.match(request);
-        }
-        
-        // Clone the response
-        const responseClone = response.clone();
-        
-        // Cache successful responses
-        caches.open(CACHE_NAME)
-          .then(cache => {
-            cache.put(request, responseClone);
+    fetch(event.request)
+      .then(networkResponse => {
+        // only cache successful (200) responses
+        if (networkResponse && networkResponse.status === 200) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, clone).catch(() => {/* ignore cache put errors */});
           });
-        
-        return response;
+        }
+        return networkResponse;
       })
       .catch(() => {
-        // Return cached version if network fails
-        return caches.match(request)
-          .then(response => {
-            if (response) return response;
-            
-            // Fallback for images
-            if (request.destination === 'image') {
-              return caches.match('./images/UFMT.png');
-            }
-            
-            // Return offline page if available
-            return caches.match('/index.html');
+        // network failed — try cache
+        return caches.match(event.request).then(cached => {
+          if (cached) return cached;
+
+          // If request is for an image, return default image if cached
+          if (event.request.destination === 'image' || event.request.url.includes('/images/')) {
+            return caches.match(BASE + 'images/UFMT.png');
+          }
+
+          // If it's navigation (page), return cached index.html
+          const accept = event.request.headers.get('accept') || '';
+          if (accept.includes('text/html')) {
+            return caches.match(BASE + 'index.html');
+          }
+
+          // generic fallback
+          return new Response('Offline: resource not available', {
+            status: 503,
+            statusText: 'Service Unavailable'
           });
+        });
       })
   );
-});
-
-// Activate Event - Clean up old caches
-self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
-  self.clients.claim();
 });
