@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fmt-tracker-pro-v18';
+const CACHE_NAME = 'fmt-tracker-pro-v35'; // Version updated for fresh install
 const urlsToCache = [
   '/',
   '/index.html',
@@ -7,7 +7,10 @@ const urlsToCache = [
   '/sw.js',
   './images/favicon.ico',
   './images/UFMT.png',
-  './images/UFMT-white-bg.jpg'
+  './images/UFMT.jpg',
+  './images/UFMT-narrow.png',
+  './images/UFMT-narrow.jpg',
+  './images/web-banner.jpg'
 ];
 
 // Install Event
@@ -15,34 +18,30 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
+        console.log('Opened cache');
         return cache.addAll(urlsToCache);
       })
   );
 });
 
-// Fetch Event
+// Fetch Event - PC installer jonno eta khubai guruttopurno
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Cache hit - return response
         if (response) {
           return response;
         }
 
-        // Clone the request
         const fetchRequest = event.request.clone();
 
         return fetch(fetchRequest)
           .then(response => {
-            // Check if valid response
             if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
 
-            // Clone the response
             const responseToCache = response.clone();
-
             caches.open(CACHE_NAME)
               .then(cache => {
                 cache.put(event.request, responseToCache);
@@ -51,7 +50,7 @@ self.addEventListener('fetch', event => {
             return response;
           })
           .catch(() => {
-            // If fetch fails, show offline page
+            // Image load fail hole default logo dekhabe
             if (event.request.url.includes('/images/')) {
               return caches.match('./images/UFMT.png');
             }
@@ -60,10 +59,9 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// Activate Event
+// Activate Event - Purano cache delete kora
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
-
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(

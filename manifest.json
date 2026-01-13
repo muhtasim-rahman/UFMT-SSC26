@@ -1,24 +1,47 @@
 {
-  "name": "FMT Tracker Pro",
-  "short_name": "FMT Pro",
-  "description": "Advanced Merit Tracking System for Course & Subject Analysis",
-  "start_url": "/",
+  "name": "Udvash FMT Tracker Pro",
+  "short_name": "UFMT Tracker",
+  "description": "Udvash Advanced Merit Tracking System for SSC-26(Personal Project)",
+  "id": "/index.html",
+  "start_url": "/index.html",
   "display": "standalone",
-  "background_color": "#f3f6ff",
+  "background_color": "#ffffff",
   "theme_color": "#6366f1",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "./images/icon-192.png",
+      "src": "./images/UFMT.jpg",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/jpeg",
+      "purpose": "any"
     },
     {
-      "src": "./images/icon-512.png",
+      "src": "./images/UFMT.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./images/UFMT.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "maskable"
     }
   ],
-  "categories": ["education", "productivity"],
-  "lang": "bn-BD"
+  "screenshots": [
+    {
+      "src": "./images/UFMT.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "FMT Tracker Desktop"
+    },
+    {
+      "src": "./images/UFMT.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "FMT Tracker Mobile"
+    }
+  ]
 }
