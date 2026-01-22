@@ -1,5 +1,5 @@
 /* ==========================================================================
-   FMT TRACKER PRO - ULTIMATE VERSION (V18.0)
+   FMT TRACKER PRO - ULTIMATE VERSION (V19.0)
    ========================================================================== */
 
 /* ==========================
@@ -60,7 +60,8 @@ let allEntries = [];
 let branchChart = null;
 let centralChart = null;
 let subjectChart = null;
-let subjectMeritChart = null;
+let subjectBranchChart = null;
+let subjectCentralChart = null;
 let deferredPrompt; 
 let isOfflineBannerDismissed = false;
 let appMode = localStorage.getItem('appMode') || 'course';
@@ -76,11 +77,15 @@ const LS_SUBJECT_CACHE = "subject_data_cache";
 const LS_SHOW_ONLY_MARKS = 'showOnlyWithMarks';
 const LS_INCLUDE_FOURTH = 'includeFourthSubject';
 const LS_FOURTH_SUBJECT = 'fourthSubject';
+const LS_AUTO_REFRESH = 'autoRefreshEnabled';
+const LS_AUTO_LOCK = 'autoLockEnabled';
 
 // ---- ( User Preferences ) ----
 let notifTimes = JSON.parse(localStorage.getItem(LS_NOTIFS)) || [];
 let notifEnabled = JSON.parse(localStorage.getItem(LS_NOTIF_STATUS)) === true;
 let autoPinVerify = JSON.parse(localStorage.getItem(LS_PIN_AUTO)) !== false; 
+let autoRefreshEnabled = JSON.parse(localStorage.getItem(LS_AUTO_REFRESH)) !== false;
+let autoLockEnabled = JSON.parse(localStorage.getItem(LS_AUTO_LOCK)) !== false;
 let lastCheckedMinute = -1;
 let showOnlyWithMarks = JSON.parse(localStorage.getItem(LS_SHOW_ONLY_MARKS)) === true;
 let includeFourthSubject = JSON.parse(localStorage.getItem(LS_INCLUDE_FOURTH)) !== false;
@@ -106,8 +111,15 @@ let subjectPIsLoading = false;
 let subjectPCurrentData = [];
 let subjectPDisplayedCount = 0;
 
+// ---- ( V19 New Variables ) ----
+let inactivityTimer = null;
+let refreshTimer = null;
+let currentEditRow = null;
+let currentEditType = null; // 'course' or 'subject'
+let lastActivityTime = Date.now();
+
 /* ==========================
-🔐 Section: 03 Security System
+🔐 Section: 03 Security System - IMPROVED
 ========================== */
 
 // ---- ( UI Render Logic ) ----
@@ -196,6 +208,8 @@ function processPin(val) {
             $('#app').classList.remove('hidden');
             fetchAllData();
             requestNotifPermission();
+            startInactivityTimer();
+            startAutoRefresh();
         }, 1000); 
     } else {
         showToast("ভুল পিন! আবার চেষ্টা করুন", "error");
@@ -226,7 +240,7 @@ function changePin() {
 window.toggleLockPinView = () => renderPinDots($('#pinInput').value);
 
 /* ==========================
-📡 Section: 04 Data Handling
+📡 Section: 04 Data Handling - IMPROVED
 ========================== */
 
 // ---- ( Smart Data Fetching ) ----
@@ -279,9 +293,9 @@ async function fetchAllData() {
                 subject: subject.subject,
                 syllabus: subject.syllabus,
                 total_marks: parseInt(subject.total) || 0,
-                obtained_marks: parseInt(subject.obtained) || null,
-                branch_merit: parseInt(subject.branch) || null,
-                central_merit: parseInt(subject.central) || null
+                obtained_marks: subject.obtained !== null && subject.obtained !== '' ? parseFloat(subject.obtained) : null,
+                branch_merit: subject.branch !== null && subject.branch !== '' ? parseInt(subject.branch) : null,
+                central_merit: subject.central !== null && subject.central !== '' ? parseInt(subject.central) : null
             }));
             localStorage.setItem(LS_SUBJECT_CACHE, JSON.stringify(subjectData));
             processSubjectData();
@@ -362,25 +376,54 @@ function updateSubjectYearDropdown() {
 function updateSubjectInfoCard() {
     const select = $('#subjectSelect');
     const card = $('#subjectInfoCard');
-    const option = select.options[select.selectedIndex];
     
     if (!select.value) {
         card.classList.add('hidden');
         return;
     }
     
+    const option = select.options[select.selectedIndex];
     card.classList.remove('hidden');
-    $('#selectedSubjectName').textContent = option.dataset.subject;
-    $('#selectedDate').textContent = formatDate(option.dataset.date);
-    $('#selectedSyllabus').textContent = option.dataset.syllabus || "সিলেবাস নেই";
     
-    $('#inpSubObtained').value = option.dataset.obtained;
-    $('#inpSubBranch').value = option.dataset.branch;
-    $('#inpSubCentral').value = option.dataset.central;
+    const subjectName = option.dataset.subject;
+    const date = option.dataset.date;
+    const syllabus = option.dataset.syllabus;
+    const totalMarks = option.dataset.total || 'N/A';
+    const obtainedMarks = option.dataset.obtained || 'N/A';
+    const branchMerit = option.dataset.branch || 'N/A';
+    const centralMerit = option.dataset.central || 'N/A';
+    
+    // Calculate percentage
+    let percentage = 'N/A';
+    if (obtainedMarks !== 'N/A' && totalMarks !== 'N/A' && totalMarks > 0) {
+        percentage = ((parseFloat(obtainedMarks) / parseFloat(totalMarks)) * 100).toFixed(1) + '%';
+    }
+    
+    // Update card
+    $('#selectedSubjectName').textContent = subjectName;
+    $('#selectedDate').textContent = formatDate(date);
+    $('#selectedSyllabus').textContent = syllabus || "সিলেবাস নেই";
+    $('#selectedTotalMarks').textContent = totalMarks;
+    $('#selectedObtainedMarks').textContent = obtainedMarks;
+    $('#selectedBranchMerit').textContent = branchMerit;
+    $('#selectedCentralMerit').textContent = centralMerit;
+    $('#selectedPercentage').textContent = percentage;
+    
+    // Update status badge
+    const statusBadge = $('#subjectStatusBadge');
+    if (obtainedMarks !== 'N/A') {
+        statusBadge.innerHTML = '<i class="fas fa-check-circle"></i> সম্পূর্ণ';
+        statusBadge.style.background = 'rgba(16, 185, 129, 0.1)';
+        statusBadge.style.color = '#10b981';
+    } else {
+        statusBadge.innerHTML = '<i class="fas fa-clock"></i> অপেক্ষমান';
+        statusBadge.style.background = 'rgba(245, 158, 11, 0.1)';
+        statusBadge.style.color = '#f59e0b';
+    }
 }
 
 /* ==========================
-📝 Section: 05 Data Submission
+📝 Section: 05 Data Submission - IMPROVED
 ========================== */
 
 // ---- ( Course Entry ) ----
@@ -416,12 +459,11 @@ async function submitEntry() {
     };
 
     const submitBtn = $('#saveEntry');
-    const refreshIcon = $('#refreshDataBtn i');
-    const originalBtnText = submitBtn.textContent;
+    const originalBtnText = submitBtn.querySelector('.btn-text').innerHTML;
     
-    submitBtn.classList.add('btn-loading');
-    submitBtn.textContent = ""; 
-    refreshIcon.classList.add('spinning');
+    submitBtn.classList.add('loading');
+    submitBtn.querySelector('.btn-text').style.visibility = 'hidden';
+    submitBtn.querySelector('.btn-loading-spinner').classList.remove('hidden');
 
     try {
         await fetch(getApiUrl(), {
@@ -443,9 +485,10 @@ async function submitEntry() {
         console.error(e);
         showToast("ডাটা পাঠাতে ব্যর্থ হয়েছে", "error");
     } finally {
-        submitBtn.classList.remove('btn-loading');
-        submitBtn.textContent = originalBtnText;
-        refreshIcon.classList.remove('spinning');
+        submitBtn.classList.remove('loading');
+        submitBtn.querySelector('.btn-text').style.visibility = 'visible';
+        submitBtn.querySelector('.btn-loading-spinner').classList.add('hidden');
+        submitBtn.querySelector('.btn-text').innerHTML = originalBtnText;
     }
 }
 
@@ -464,16 +507,17 @@ async function submitSubjectEntry() {
     const payload = {
         type: 'update_subject',
         serial: serial,
-        my_marks: marks,
+        my_marks: parseFloat(marks),
         branch: branch || "",
         central: central || ""
     };
     
     const submitBtn = $('#btnSaveSubject');
-    const originalText = submitBtn.innerHTML;
+    const originalBtnText = submitBtn.querySelector('.btn-text').innerHTML;
     
-    submitBtn.classList.add('btn-loading');
-    submitBtn.innerHTML = '';
+    submitBtn.classList.add('loading');
+    submitBtn.querySelector('.btn-text').style.visibility = 'hidden';
+    submitBtn.querySelector('.btn-loading-spinner').classList.remove('hidden');
     
     try {
         const response = await fetch(getApiUrl(), {
@@ -497,18 +541,20 @@ async function submitSubjectEntry() {
         console.error('Error:', error);
         showToast("নেটওয়ার্ক ত্রুটি", "error");
     } finally {
-        submitBtn.classList.remove('btn-loading');
-        submitBtn.innerHTML = originalText;
+        submitBtn.classList.remove('loading');
+        submitBtn.querySelector('.btn-text').style.visibility = 'visible';
+        submitBtn.querySelector('.btn-loading-spinner').classList.add('hidden');
+        submitBtn.querySelector('.btn-text').innerHTML = originalBtnText;
     }
 }
 
 /* ==========================
-🔄 Section: 06 Mode Management
+🔄 Section: 06 Mode Management - IMPROVED
 ========================== */
 
 // ১. পেজ লোড হওয়ার সময় মোড ডিটেক্ট করা
 if (!localStorage.getItem('appMode')) {
-    localStorage.setItem('appMode', 'subject');
+    localStorage.setItem('appMode', 'course');
 }
 appMode = localStorage.getItem('appMode');
 
@@ -530,16 +576,30 @@ function switchMode(mode) {
             renderSubjectDashboard();
         }
     }
+    
+    // Update mode indicator
+    $('#currentModeText').textContent = mode === 'course' ? 'কোর্স ভিত্তিক' : 'বিষয় ভিত্তিক';
+    
+    // Reset inactivity timer
+    resetInactivityTimer();
 }
 
 // ৩. UI এলিমেন্টগুলো হাইড/শো করা
 function updateModeUI(mode) {
     const courseBtn = $('#btnModeCourse');
     const subjectBtn = $('#btnModeSubject');
+    const courseHeaderBtn = $('#btnModeCourseHeader');
+    const subjectHeaderBtn = $('#btnModeSubjectHeader');
     
+    // Update main mode switcher
     if (courseBtn) courseBtn.classList.toggle('active', mode === 'course');
     if (subjectBtn) subjectBtn.classList.toggle('active', mode === 'subject');
     
+    // Update header mode switcher
+    if (courseHeaderBtn) courseHeaderBtn.classList.toggle('active', mode === 'course');
+    if (subjectHeaderBtn) subjectHeaderBtn.classList.toggle('active', mode === 'subject');
+    
+    // Show/hide mode sections
     $$('.course-mode').forEach(el => {
         if (el.id !== 'modeSwitcher') el.classList.toggle('hidden', mode !== 'course');
     });
@@ -548,15 +608,29 @@ function updateModeUI(mode) {
         el.classList.toggle('hidden', mode !== 'subject');
     });
     
-    if ($('#filterBar')) $('#filterBar').classList.toggle('hidden', mode !== 'course');
-    if ($('#subjectFilterBar')) $('#subjectFilterBar').classList.toggle('hidden', mode !== 'subject');
+    // Show/hide filter bars based on current tab
+    const activeTab = $$('.tab-item:not(.hidden)')[0]?.id || 'tabInput';
+    const showFilter = (activeTab === 'tabTable' || activeTab === 'tabGraph');
+    
+    if ($('#filterBar')) $('#filterBar').classList.toggle('hidden', !showFilter || mode !== 'course');
+    if ($('#subjectFilterBar')) $('#subjectFilterBar').classList.toggle('hidden', !showFilter || mode !== 'subject');
 }
 
 // ৪. ভিউ অনুযায়ী টাইটেল পরিবর্তন
 function updateViewTitle() {
     const titleMap = {
-        'course': { tabInput: "ডাটা এন্ট্রি", tabTable: "রিপোর্ট শিট", tabGraph: "বিশ্লেষণ", tabPin: "সেটিংস" },
-        'subject': { tabInput: "বিষয়ভিত্তিক এন্ট্রি", tabTable: "বিষয়ভিত্তিক রিপোর্ট", tabGraph: "বিষয়ভিত্তিক বিশ্লেষণ", tabPin: "সেটিংস" }
+        'course': { 
+            tabInput: "ডাটা এন্ট্রি", 
+            tabTable: "রিপোর্ট শিট", 
+            tabGraph: "বিশ্লেষণ", 
+            tabPin: "সেটিংস" 
+        },
+        'subject': { 
+            tabInput: "বিষয়ভিত্তিক এন্ট্রি", 
+            tabTable: "বিষয়ভিত্তিক রিপোর্ট", 
+            tabGraph: "বিষয়ভিত্তিক বিশ্লেষণ", 
+            tabPin: "সেটিংস" 
+        }
     };
     
     const activeTab = $$('.tab-item:not(.hidden)')[0]?.id || 'tabInput';
@@ -565,21 +639,8 @@ function updateViewTitle() {
     }
 }
 
-// ৫. পেজ লোডের সময় অটো-রেন্ডার নিশ্চিত করা (এটি সেকশন ১২ এর সাথেও সম্পৃক্ত)
-function initializeAppMode() {
-    initializeAppMode(appMode);
-    updateViewTitle();
-    // ডাটা ক্যাশে থাকলে সাথে সাথে রেন্ডার করবে
-    if (appMode === 'course' && allEntries.length > 0) renderDashboard();
-    if (appMode === 'subject' && subjectData.length > 0) {
-        processSubjectData();
-        renderSubjectDashboard();
-    }
-}
-
-
 /* ==========================
-📊 Section: 07 Dashboard & Charts
+📊 Section: 07 Dashboard & Charts - ENHANCED
 ========================== */
 
 // ---- ( Course Dashboard ) ----
@@ -589,11 +650,15 @@ function renderDashboard() {
     const month = $('#monthSelect')?.value;
     const start = $('#startDate')?.value;
     const end = $('#endDate')?.value;
+    const maxBranch = $('#maxBranch')?.value;
+    const maxCentral = $('#maxCentral')?.value;
 
     if (year) data = data.filter(d => String(d.date).startsWith(year));
     if (month) data = data.filter(d => String(d.date).split('-')[1] === month);
     if (start) data = data.filter(d => new Date(d.date) >= new Date(start));
     if (end) data = data.filter(d => new Date(d.date) <= new Date(end));
+    if (maxBranch) data = data.filter(d => d.branch <= parseInt(maxBranch));
+    if (maxCentral) data = data.filter(d => d.central <= parseInt(maxCentral));
 
     updateTable(data);
     updateSummary(data);
@@ -606,39 +671,107 @@ function updateSummary(data) {
             if($(id)) $(id).textContent = "-";
         });
         if($('#sumTotal')) $('#sumTotal').textContent = "0";
+        if($('#bestBranchDetail')) $('#bestBranchDetail').textContent = "";
+        if($('#bestCentralDetail')) $('#bestCentralDetail').textContent = "";
         return;
     }
 
     const last = data[data.length - 1]; 
     const bValues = allEntries.map(d => parseInt(d.branch)).filter(Boolean); 
     const cValues = allEntries.map(d => parseInt(d.central)).filter(Boolean);
+    const bestBranch = bValues.length ? Math.min(...bValues) : "-";
+    const bestCentral = cValues.length ? Math.min(...cValues) : "-";
 
     const setVal = (id, val) => { if ($(id)) $(id).textContent = val; };
-    setVal('#sumLastDate', last.date);
+    setVal('#sumLastDate', formatDate(last.date));
     setVal('#sumBranch', last.branch);
     setVal('#sumCentral', last.central);
-    setVal('#sumBestBranch', bValues.length ? Math.min(...bValues) : "-");
-    setVal('#sumBestCentral', cValues.length ? Math.min(...cValues) : "-");
+    setVal('#sumBestBranch', bestBranch);
+    setVal('#sumBestCentral', bestCentral);
     setVal('#sumTotal', data.length);
+    
+    // Update best details
+    if (bestBranch !== "-") {
+        const bestBranchEntry = allEntries.find(d => d.branch === bestBranch);
+        if (bestBranchEntry) {
+            $('#bestBranchDetail').textContent = `R-${bestBranchEntry.serial}, ${formatDate(bestBranchEntry.date)}`;
+        }
+    }
+    
+    if (bestCentral !== "-") {
+        const bestCentralEntry = allEntries.find(d => d.central === bestCentral);
+        if (bestCentralEntry) {
+            $('#bestCentralDetail').textContent = `R-${bestCentralEntry.serial}, ${formatDate(bestCentralEntry.date)}`;
+        }
+    }
 }
 
 function updateCourseCharts(data) {
     if (!window.Chart) return;
+    
+    // Prepare data
     const chartData = [...data]; 
     const labels = chartData.map(d => `R-${d.serial}`);
+    const branchData = chartData.map(d => d.branch);
+    const centralData = chartData.map(d => d.central);
+    const dates = chartData.map(d => d.date);
 
+    // Common options
     const commonOptions = {
         responsive: true,
         maintainAspectRatio: false,
         layout: { padding: 10 },
-        interaction: { mode: "index", intersect: false },
-        scales: {
-            y: { grid: { color: "rgba(0,0,0,0.05)", drawBorder: false }, ticks: { font: { family: "Inter", size: 11 } } },
-            x: { grid: { display: false }, ticks: { autoSkip: true, maxTicksLimit: 12, font: { family: "Inter", size: 10 } } }
+        interaction: {
+            mode: "index",
+            intersect: false
         },
-        plugins: { legend: { display: false } }
+        scales: {
+            y: { 
+                grid: { color: "rgba(0,0,0,0.05)", drawBorder: false }, 
+                ticks: { font: { family: "Inter", size: 11 } },
+                beginAtZero: false,
+                reverse: true
+            },
+            x: { 
+                grid: { display: false }, 
+                ticks: { 
+                    autoSkip: true, 
+                    maxTicksLimit: 12, 
+                    font: { family: "Inter", size: 10 } 
+                }
+            }
+        },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: 'var(--card-bg)',
+                titleColor: 'var(--primary)',
+                bodyColor: 'var(--text-main)',
+                borderColor: 'var(--border)',
+                borderWidth: 1,
+                callbacks: {
+                    title: function(context) {
+                        return `R-${chartData[context[0].dataIndex].serial}`;
+                    },
+                    label: function(context) {
+                        const index = context.dataIndex;
+                        const dataPoint = chartData[index];
+                        if (context.datasetIndex === 0) {
+                            return `ব্রাঞ্চ মেরিট: ${dataPoint.branch}`;
+                        } else {
+                            return `সেন্ট্রাল মেরিট: ${dataPoint.central}`;
+                        }
+                    },
+                    afterLabel: function(context) {
+                        const index = context.dataIndex;
+                        return `আপডেট তারিখ: ${formatDate(dates[index])}`;
+                    }
+                }
+            }
+        }
     };
 
+    // Branch Chart
     if (branchChart) branchChart.destroy();
     branchChart = new Chart($("#branchChart"), {
         type: "line",
@@ -646,13 +779,20 @@ function updateCourseCharts(data) {
             labels,
             datasets: [{
                 label: "ব্রাঞ্চ মেরিট",
-                data: chartData.map(d => d.branch),
-                borderColor: "#6366f1", borderWidth: 2, pointRadius: 3, tension: 0.2, fill: true, backgroundColor: "rgba(99, 102, 241, 0.1)"
+                data: branchData,
+                borderColor: "#6366f1", 
+                borderWidth: 2, 
+                pointRadius: 4, 
+                pointBackgroundColor: "#6366f1",
+                tension: 0.2, 
+                fill: true, 
+                backgroundColor: "rgba(99, 102, 241, 0.1)"
             }]
         },
         options: commonOptions
     });
 
+    // Central Chart
     if (centralChart) centralChart.destroy();
     centralChart = new Chart($("#centralChart"), {
         type: "line",
@@ -660,8 +800,14 @@ function updateCourseCharts(data) {
             labels,
             datasets: [{
                 label: "সেন্ট্রাল মেরিট",
-                data: chartData.map(d => d.central),
-                borderColor: "#10b981", borderWidth: 2, pointRadius: 3, tension: 0.2, fill: true, backgroundColor: "rgba(16, 185, 129, 0.1)"
+                data: centralData,
+                borderColor: "#10b981", 
+                borderWidth: 2, 
+                pointRadius: 4,
+                pointBackgroundColor: "#10b981",
+                tension: 0.2, 
+                fill: true, 
+                backgroundColor: "rgba(16, 185, 129, 0.1)"
             }]
         },
         options: commonOptions
@@ -700,6 +846,9 @@ function applySubjectFilters() {
             data = data.filter(d => d.branch_merit !== null)
                        .sort((a, b) => a.branch_merit - b.branch_merit);
             break;
+        case 'need_improvement':
+            data = data.filter(d => d.obtained_marks !== null && (d.obtained_marks / d.total_marks) < 0.33);
+            break;
     }
     
     const year = $('#subjectYearSelect').value;
@@ -712,40 +861,68 @@ function applySubjectFilters() {
         data = data.filter(d => d.date.split('-')[1] === month);
     }
     
+    const minMarks = $('#minMarks').value;
+    if (minMarks) {
+        data = data.filter(d => d.obtained_marks !== null && d.obtained_marks >= parseFloat(minMarks));
+    }
+    
+    const maxBranch = $('#subjectMaxBranch').value;
+    if (maxBranch) {
+        data = data.filter(d => d.branch_merit !== null && d.branch_merit <= parseInt(maxBranch));
+    }
+    
     return data;
 }
 
 function updateSubjectSummary(data) {
     const totalExams = subjectData.length;
     const attemptedExams = subjectData.filter(d => d.obtained_marks !== null).length;
+    const passedExams = subjectData.filter(d => d.obtained_marks !== null && (d.obtained_marks / d.total_marks) >= 0.33).length;
     
     const withMarks = data.filter(d => d.obtained_marks !== null);
     const totalMarks = withMarks.reduce((sum, d) => sum + d.obtained_marks, 0);
     const totalPossible = withMarks.reduce((sum, d) => sum + d.total_marks, 0);
-    const average = totalPossible > 0 ? Math.round((totalMarks / totalPossible) * 100) : 0;
+    const average = totalPossible > 0 ? ((totalMarks / totalPossible) * 100).toFixed(1) : 0;
     
-    const gpa = calculateGPA(withMarks);
+    // Calculate GPA with and without 4th subject
+    const gpaWith4th = calculateGPA(withMarks, true);
+    const gpaWithout4th = calculateGPA(withMarks, false);
     
+    // Find best performance
     const withRanks = withMarks.filter(d => d.branch_merit !== null && d.central_merit !== null);
     const bestBranch = withRanks.length > 0 ? 
-        Math.min(...withRanks.map(d => d.branch_merit)) : '-';
+        withRanks.reduce((best, current) => current.branch_merit < best.branch_merit ? current : best) : null;
     const bestCentral = withRanks.length > 0 ? 
-        Math.min(...withRanks.map(d => d.central_merit)) : '-';
+        withRanks.reduce((best, current) => current.central_merit < best.central_merit ? current : best) : null;
+    const bestMarks = withMarks.length > 0 ? 
+        withMarks.reduce((best, current) => (current.obtained_marks / current.total_marks) > (best.obtained_marks / best.total_marks) ? current : best) : null;
     
-    const bestBranchSubject = withRanks.find(d => d.branch_merit === bestBranch);
-    const bestCentralSubject = withRanks.find(d => d.central_merit === bestCentral);
-    
+    // Update summary cards
     $('#sumSubjectExams').textContent = totalExams;
     $('#sumSubjectAttempted').textContent = attemptedExams;
     $('#sumSubjectAverage').textContent = `${average}%`;
-    $('#sumSubjectBestBranch').textContent = bestBranchSubject ? 
-        `${bestBranchSubject.subject} (${bestBranch})` : '-';
-    $('#sumSubjectBestCentral').textContent = bestCentralSubject ? 
-        `${bestCentralSubject.subject} (${bestCentral})` : '-';
-    $('#sumSubjectGPA').textContent = gpa.toFixed(2);
+    $('#sumSubjectGPAWith4th').textContent = gpaWith4th.toFixed(2);
+    $('#sumSubjectGPAWithout4th').textContent = gpaWithout4th.toFixed(2);
+    $('#sumSubjectPassed').textContent = passedExams;
+    
+    // Update average detail
+    $('#averageDetail').textContent = `${withMarks.length}টি পরীক্ষার গড়`;
+    
+    // Update best performance cards
+    $('#bestBranchSubject').textContent = bestBranch ? bestBranch.subject : '-';
+    $('#bestBranchPosition').textContent = bestBranch ? bestBranch.branch_merit : '-';
+    $('#bestBranchMarks').textContent = bestBranch ? `${bestBranch.obtained_marks}/${bestBranch.total_marks}` : '-/-';
+    
+    $('#bestCentralSubject').textContent = bestCentral ? bestCentral.subject : '-';
+    $('#bestCentralPosition').textContent = bestCentral ? bestCentral.central_merit : '-';
+    $('#bestCentralMarks').textContent = bestCentral ? `${bestCentral.obtained_marks}/${bestCentral.total_marks}` : '-/-';
+    
+    $('#bestMarksSubject').textContent = bestMarks ? bestMarks.subject : '-';
+    $('#bestMarksPercentage').textContent = bestMarks ? `${((bestMarks.obtained_marks / bestMarks.total_marks) * 100).toFixed(1)}%` : '-';
+    $('#bestMarksValue').textContent = bestMarks ? `${bestMarks.obtained_marks}/${bestMarks.total_marks}` : '-/-';
 }
 
-function calculateGPA(subjects) {
+function calculateGPA(subjects, includeFourth = true) {
     if (subjects.length === 0) return 0;
     
     let totalPoints = 0;
@@ -767,7 +944,7 @@ function calculateGPA(subjects) {
                 (subject.subject.includes(fourthSubject) || 
                  subject.subject.includes('উচ্চতর গণিত') && fourthSubject === 'উচ্চতর গণিত');
             
-            if (!isFourthSubject || includeFourthSubject) {
+            if (includeFourth || !isFourthSubject) {
                 totalPoints += gpa;
                 count++;
             }
@@ -781,13 +958,14 @@ function updateSubjectCharts(data) {
     const withMarks = data.filter(d => d.obtained_marks !== null);
     if (withMarks.length === 0) {
         if (subjectChart) subjectChart.destroy();
-        if (subjectMeritChart) subjectMeritChart.destroy();
+        if (subjectBranchChart) subjectBranchChart.destroy();
+        if (subjectCentralChart) subjectCentralChart.destroy();
         return;
     }
     
     withMarks.sort((a, b) => new Date(a.date) - new Date(b.date));
     updateSubjectMarksChart(withMarks);
-    updateSubjectMeritChart(withMarks);
+    updateSubjectMeritCharts(withMarks);
 }
 
 function updateSubjectMarksChart(data) {
@@ -823,17 +1001,26 @@ function updateSubjectMarksChart(data) {
             plugins: {
                 legend: { position: 'top' },
                 tooltip: {
+                    backgroundColor: 'var(--card-bg)',
+                    titleColor: 'var(--primary)',
+                    bodyColor: 'var(--text-main)',
+                    borderColor: 'var(--border)',
+                    borderWidth: 1,
                     callbacks: {
                         title: (context) => data[context[0].dataIndex].subject,
                         label: (context) => {
                             const item = data[context.dataIndex];
                             if (context.datasetIndex === 0) {
-                                return `প্রাপ্ত: ${item.obtained_marks}/${item.total_marks} (${Math.round((item.obtained_marks/item.total_marks)*100)}%)`;
+                                return `প্রাপ্ত: ${item.obtained_marks}/${item.total_marks}`;
                             } else {
                                 return `মোট: ${item.total_marks}`;
                             }
                         },
-                        afterLabel: (context) => `তারিখ: ${formatDate(data[context.dataIndex].date)}`
+                        afterLabel: (context) => {
+                            const item = data[context.dataIndex];
+                            const percentage = ((item.obtained_marks / item.total_marks) * 100).toFixed(1);
+                            return `শতকরা: ${percentage}%\nতারিখ: ${formatDate(item.date)}`;
+                        }
                     }
                 }
             },
@@ -845,69 +1032,115 @@ function updateSubjectMarksChart(data) {
     });
 }
 
-function updateSubjectMeritChart(data) {
-    const canvas = $('#subjectMeritChart');
-    if (!canvas) return;
-    
-    if (subjectMeritChart) subjectMeritChart.destroy();
-    
-    const ctx = canvas.getContext('2d');
-    subjectMeritChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: data.map(d => d.subject.length > 8 ? d.subject.substring(0, 8) + '...' : d.subject),
-            datasets: [{
-                label: 'ব্রাঞ্চ মেরিট',
-                data: data.map(d => d.branch_merit),
-                borderColor: 'rgba(99, 102, 241, 1)',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                borderWidth: 2,
-                tension: 0.3,
-                fill: true
-            }, {
-                label: 'কেন্দ্রীয় মেরিট',
-                data: data.map(d => d.central_merit),
-                borderColor: 'rgba(16, 185, 129, 1)',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                borderWidth: 2,
-                tension: 0.3,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'top' },
-                tooltip: {
-                    callbacks: {
-                        title: (context) => data[context[0].dataIndex].subject,
-                        label: (context) => {
-                            const item = data[context.dataIndex];
-                            return `${context.dataset.label}: ${context.raw}`;
-                        },
-                        afterLabel: (context) => {
-                            const item = data[context.dataIndex];
-                            return `তারিখ: ${formatDate(item.date)}\nনম্বর: ${item.obtained_marks}/${item.total_marks}`;
+function updateSubjectMeritCharts(data) {
+    // Branch Merit Chart
+    const branchCanvas = $('#subjectBranchChart');
+    if (branchCanvas) {
+        if (subjectBranchChart) subjectBranchChart.destroy();
+        
+        const branchCtx = branchCanvas.getContext('2d');
+        subjectBranchChart = new Chart(branchCtx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.subject.length > 8 ? d.subject.substring(0, 8) + '...' : d.subject),
+                datasets: [{
+                    label: 'ব্রাঞ্চ মেরিট',
+                    data: data.map(d => d.branch_merit),
+                    borderColor: 'rgba(99, 102, 241, 1)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        backgroundColor: 'var(--card-bg)',
+                        titleColor: 'var(--primary)',
+                        bodyColor: 'var(--text-main)',
+                        borderColor: 'var(--border)',
+                        borderWidth: 1,
+                        callbacks: {
+                            title: (context) => data[context[0].dataIndex].subject,
+                            label: (context) => `ব্রাঞ্চ মেরিট: ${context.raw}`,
+                            afterLabel: (context) => {
+                                const item = data[context.dataIndex];
+                                const percentage = ((item.obtained_marks / item.total_marks) * 100).toFixed(1);
+                                return `নম্বর: ${item.obtained_marks}/${item.total_marks} (${percentage}%)\nতারিখ: ${formatDate(item.date)}`;
+                            }
                         }
                     }
+                },
+                scales: {
+                    y: { reverse: true },
+                    x: {}
                 }
-            },
-            scales: {
-                y: { },
-                x: {}
             }
-        }
-    });
+        });
+    }
+    
+    // Central Merit Chart
+    const centralCanvas = $('#subjectCentralChart');
+    if (centralCanvas) {
+        if (subjectCentralChart) subjectCentralChart.destroy();
+        
+        const centralCtx = centralCanvas.getContext('2d');
+        subjectCentralChart = new Chart(centralCtx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.subject.length > 8 ? d.subject.substring(0, 8) + '...' : d.subject),
+                datasets: [{
+                    label: 'কেন্দ্রীয় মেরিট',
+                    data: data.map(d => d.central_merit),
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        backgroundColor: 'var(--card-bg)',
+                        titleColor: 'var(--primary)',
+                        bodyColor: 'var(--text-main)',
+                        borderColor: 'var(--border)',
+                        borderWidth: 1,
+                        callbacks: {
+                            title: (context) => data[context[0].dataIndex].subject,
+                            label: (context) => `কেন্দ্রীয় মেরিট: ${context.raw}`,
+                            afterLabel: (context) => {
+                                const item = data[context.dataIndex];
+                                const percentage = ((item.obtained_marks / item.total_marks) * 100).toFixed(1);
+                                return `নম্বর: ${item.obtained_marks}/${item.total_marks} (${percentage}%)\nতারিখ: ${formatDate(item.date)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { reverse: true },
+                    x: {}
+                }
+            }
+        });
+    }
 }
 
 /* ==========================
-📋 Section: 08 Tables & Pagination
+📋 Section: 08 Tables & Pagination - FIXED
 ========================== */
 
 // ---- ( Course Table ) ----
 function updateTable(data) {
-    pCurrentData = [...data].reverse();
+    pCurrentData = [...data].reverse(); // Keep reversed for display
     
     const endMsg = $("#endMessage");
     const infLoader = $("#infiniteLoader");
@@ -949,6 +1182,15 @@ function loadMoreInfinite() {
 
 function renderPage(page) {
     pCurrentPage = page;
+    const totalPages = Math.ceil(pCurrentData.length / pRowsPerPage);
+    
+    if (totalPages === 0) {
+        $("#tableRows").innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
+        $("#paginationControls").classList.add("hidden");
+        $("#endMessage")?.classList.remove("hidden");
+        return;
+    }
+    
     const start = (page - 1) * pRowsPerPage;
     const pageData = pCurrentData.slice(start, start + pRowsPerPage);
     $("#tableRows").innerHTML = "";
@@ -959,16 +1201,20 @@ function renderPage(page) {
 function renderRows(data, append) {
     const tbody = $("#tableRows");
     if (!tbody) return;
+    
     if (!data.length && !append) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
         return;
     }
-    const html = data.map(d => `
-        <tr class="fade-in">
+    
+    const html = data.map((d, index) => {
+        const displayIndex = pDisplayedCount - data.length + index + 1;
+        return `
+        <tr class="fade-in" data-serial="${d.serial}">
             <td><span class="sn-badge">${d.serial}</span></td>
             <td>
                 <div class="table-date-cell">
-                    <span>${d.date}</span>
+                    <span>${formatDate(d.date)}</span>
                     <div class="table-time-row">
                         <i class="far fa-clock"></i><span class="time-text">${format12hr(d.time)}</span>
                     </div>
@@ -976,17 +1222,41 @@ function renderRows(data, append) {
             </td>
             <td class="fw-800">${d.branch}</td>
             <td class="fw-800">${d.central}</td>
-        </tr>`).join("");
+            <td>
+                <button class="table-action-btn action-menu-trigger" data-serial="${d.serial}" data-type="course">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join("");
+    
     append ? tbody.insertAdjacentHTML("beforeend", html) : tbody.innerHTML = html;
+    
+    // Add event listeners for action buttons
+    tbody.querySelectorAll('.action-menu-trigger').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showActionMenu(e.target.closest('button'), 'course');
+        });
+    });
 }
 
 function renderPaginationControls() {
     const container = $("#paginationControls");
     if (!container) return;
+    
     const totalPages = Math.ceil(pCurrentData.length / pRowsPerPage);
-    if (totalPages <= 1) { container.innerHTML = ""; return; }
-
-    let html = `<button class="page-num-btn" onclick="renderPage(${pCurrentPage - 1})" ${pCurrentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
+    if (totalPages <= 1) { 
+        container.innerHTML = ""; 
+        container.classList.add("hidden");
+        return; 
+    }
+    
+    container.classList.remove("hidden");
+    
+    let html = `<button class="page-num-btn" onclick="renderPage(${pCurrentPage - 1})" ${pCurrentPage === 1 ? 'disabled' : ''}>
+        <i class="fas fa-chevron-left"></i>
+    </button>`;
     
     for (let i = 1; i <= totalPages; i++) {
          if (i === 1 || i === totalPages || (i >= pCurrentPage - 1 && i <= pCurrentPage + 1)) {
@@ -995,7 +1265,10 @@ function renderPaginationControls() {
             if (!html.endsWith('...')) html += `<span class="pagination-dots">...</span>`;
         }
     }
-    html += `<button class="page-num-btn" onclick="renderPage(${pCurrentPage + 1})" ${pCurrentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+    
+    html += `<button class="page-num-btn" onclick="renderPage(${pCurrentPage + 1})" ${pCurrentPage === totalPages ? 'disabled' : ''}>
+        <i class="fas fa-chevron-right"></i>
+    </button>`;
     container.innerHTML = html;
 }
 
@@ -1003,7 +1276,7 @@ window.setPaginationMode = (mode) => {
     if (pMode === mode) return;
     pMode = mode;
     localStorage.setItem("pMode", mode);
-    updateTable([...pCurrentData].reverse());
+    updateTable(pCurrentData);
     
     $$(".p-btn").forEach(b => {
         const isClickedMode = b.getAttribute("onclick").includes(mode);
@@ -1014,12 +1287,13 @@ window.setPaginationMode = (mode) => {
 window.handleRowsChange = (val) => {
     pRowsPerPage = parseInt(val);
     localStorage.setItem("pRowsPerPage", pRowsPerPage);
-    updateTable([...pCurrentData].reverse());
+    pDisplayedCount = 0;
+    updateTable(pCurrentData);
 };
 
 // ---- ( Subject Table ) ----
 function updateSubjectTable(data) {
-    subjectPCurrentData = [...data].reverse();
+    subjectPCurrentData = [...data]; // Don't reverse for subject table
     
     const endMsg = $("#subjectEndMessage");
     const loader = $("#subjectInfiniteLoader");
@@ -1061,6 +1335,15 @@ function loadMoreSubjectInfinite() {
 
 function renderSubjectPage(page) {
     subjectPCurrentPage = page;
+    const totalPages = Math.ceil(subjectPCurrentData.length / subjectPRowsPerPage);
+    
+    if (totalPages === 0) {
+        $("#subjectTableRows").innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
+        $("#subjectPaginationControls").classList.add("hidden");
+        $("#subjectEndMessage")?.classList.remove("hidden");
+        return;
+    }
+    
     const start = (page - 1) * subjectPRowsPerPage;
     const pageData = subjectPCurrentData.slice(start, start + subjectPRowsPerPage);
     $("#subjectTableRows").innerHTML = "";
@@ -1073,28 +1356,41 @@ function renderSubjectRows(data, append) {
     if (!tbody) return;
     
     if (!data.length && !append) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
         return;
     }
     
     const html = data.map((d, index) => {
-        const serial = subjectPDisplayedCount - data.length + index + 1;
-        const percentage = d.obtained_marks !== null ? Math.round((d.obtained_marks / d.total_marks) * 100) : '-';
+        const displayIndex = subjectPDisplayedCount - data.length + index + 1;
+        const percentage = d.obtained_marks !== null ? ((d.obtained_marks / d.total_marks) * 100).toFixed(1) : null;
+        const gpa = d.obtained_marks !== null ? calculateSubjectGPA(d.obtained_marks, d.total_marks) : null;
         
         return `
-        <tr class="fade-in">
-            <td><span class="sn-badge">${serial}</span></td>
+        <tr class="fade-in" data-serial="${d.serial}">
+            <td><span class="sn-badge">${displayIndex}</span></td>
             <td class="subject-table-cell">
                 <div class="subject-name">${d.subject}</div>
                 <div class="subject-syllabus" title="${d.syllabus}">${d.syllabus || 'সিলেবাস নেই'}</div>
             </td>
             <td>${formatDate(d.date)}</td>
             <td>
-                <b>${d.obtained_marks !== null ? d.obtained_marks : '-'}</b> / ${d.total_marks}
-                ${d.obtained_marks !== null ? `<div style="font-size:11px; color:var(--text-muted);">${percentage}%</div>` : ''}
+                <div class="marks-with-gpa">
+                    <div class="marks-value">
+                        ${d.obtained_marks !== null ? d.obtained_marks : '-'} / ${d.total_marks}
+                    </div>
+                    ${percentage !== null ? `
+                    <div class="gpa-value">
+                        ${percentage}% <span class="gpa-dot">•</span> GPA: ${gpa}
+                    </div>` : ''}
+                </div>
             </td>
             <td>${d.branch_merit !== null ? d.branch_merit : '-'}</td>
             <td>${d.central_merit !== null ? d.central_merit : '-'}</td>
+            <td>
+                <button class="table-action-btn action-menu-trigger" data-serial="${d.serial}" data-type="subject">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+            </td>
         </tr>`;
     }).join("");
     
@@ -1103,15 +1399,45 @@ function renderSubjectRows(data, append) {
     } else {
         tbody.innerHTML = html;
     }
+    
+    // Add event listeners for action buttons
+    tbody.querySelectorAll('.action-menu-trigger').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showActionMenu(e.target.closest('button'), 'subject');
+        });
+    });
+}
+
+function calculateSubjectGPA(obtained, total) {
+    if (obtained === null || total === 0) return 0;
+    const percentage = (obtained / total) * 100;
+    
+    if (percentage >= 80) return '5.0';
+    else if (percentage >= 70) return '4.0';
+    else if (percentage >= 60) return '3.5';
+    else if (percentage >= 50) return '3.0';
+    else if (percentage >= 40) return '2.0';
+    else if (percentage >= 33) return '1.0';
+    else return '0.0';
 }
 
 function renderSubjectPaginationControls() {
     const container = $("#subjectPaginationControls");
     if (!container) return;
-    const totalPages = Math.ceil(subjectPCurrentData.length / subjectPRowsPerPage);
-    if (totalPages <= 1) { container.innerHTML = ""; return; }
     
-    let html = `<button class="page-num-btn" onclick="renderSubjectPage(${subjectPCurrentPage - 1})" ${subjectPCurrentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
+    const totalPages = Math.ceil(subjectPCurrentData.length / subjectPRowsPerPage);
+    if (totalPages <= 1) { 
+        container.innerHTML = ""; 
+        container.classList.add("hidden");
+        return; 
+    }
+    
+    container.classList.remove("hidden");
+    
+    let html = `<button class="page-num-btn" onclick="renderSubjectPage(${subjectPCurrentPage - 1})" ${subjectPCurrentPage === 1 ? 'disabled' : ''}>
+        <i class="fas fa-chevron-left"></i>
+    </button>`;
     
     for (let i = 1; i <= totalPages; i++) {
         if (i === 1 || i === totalPages || (i >= subjectPCurrentPage - 1 && i <= subjectPCurrentPage + 1)) {
@@ -1121,7 +1447,9 @@ function renderSubjectPaginationControls() {
         }
     }
     
-    html += `<button class="page-num-btn" onclick="renderSubjectPage(${subjectPCurrentPage + 1})" ${subjectPCurrentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+    html += `<button class="page-num-btn" onclick="renderSubjectPage(${subjectPCurrentPage + 1})" ${subjectPCurrentPage === totalPages ? 'disabled' : ''}>
+        <i class="fas fa-chevron-right"></i>
+    </button>`;
     container.innerHTML = html;
 }
 
@@ -1135,22 +1463,27 @@ window.setSubjectPaginationMode = (mode) => {
         b.classList.toggle("active", isClickedMode);
     });
     
+    subjectPDisplayedCount = 0;
     updateSubjectTable(subjectPCurrentData);
 };
 
 window.handleSubjectRowsChange = (val) => {
     subjectPRowsPerPage = parseInt(val);
     localStorage.setItem("subjectPRowsPerPage", subjectPRowsPerPage);
+    subjectPDisplayedCount = 0;
     updateSubjectTable(subjectPCurrentData);
 };
 
 /* ==========================
-🔔 Section: 09 Notifications
+🔔 Section: 09 Notifications - ENHANCED
 ========================== */
 
 async function requestNotifPermission() {
     if ("Notification" in window && Notification.permission !== "granted") {
-        await Notification.requestPermission();
+        const permission = await Notification.requestPermission();
+        if (permission === "granted") {
+            showToast("নোটিফিকেশন অন করা হয়েছে", "success");
+        }
     }
 }
 
@@ -1167,25 +1500,43 @@ function checkNotifications() {
     lastCheckedMinute = currentMinuteVal;
 
     if (notifTimes.includes(currentTime)) {
-        if (Notification.permission === "granted") {
-            new Notification("FMT Tracker Pro", {
-                body: `আপনার রিপোর্ট চেক করার সময় হয়েছে (${format12hr(currentTime)})।`,
-                icon: "./images/favicon.ico"
-            });
-        } else {
-            showToast(`⏰ রিমাইন্ডার: রিপোর্ট চেক করুন (${format12hr(currentTime)})`);
-        }
+        sendNotification(currentTime);
+    }
+}
+
+function sendNotification(time) {
+    const time12hr = format12hr(time);
+    const title = "আজকের কোর্স মেরিট যোগ করুন";
+    const body = `${time12hr} সময় হয়ে গেছে, আপনার আজকের ডাটাগুলো দ্রুত আপডেট করুন!`;
+    const icon = "./images/UFMT.png";
+    
+    if (Notification.permission === "granted") {
+        new Notification(title, {
+            body: body,
+            icon: icon,
+            tag: 'fmt-reminder',
+            requireInteraction: true
+        });
+    } else {
+        // Fallback to toast notification
+        showToast(`⏰ রিমাইন্ডার: ${body}`);
     }
 }
 
 function renderReminders() {
     const list = $('#notifList');
     if (!list) return;
-    list.innerHTML = notifTimes.length ? notifTimes.sort().map((t, i) => `
+    
+    if (notifTimes.length === 0) {
+        list.innerHTML = '<p class="empty-msg">কোন রিমাইন্ডার সেট করা নেই</p>';
+        return;
+    }
+    
+    list.innerHTML = notifTimes.sort().map((t, i) => `
         <div class="rem-item"> 
             <span class="rem-time"><i class="far fa-clock"></i> ${format12hr(t)}</span> 
             <button onclick="confirmDelRem(${i})" class="del-rem"><i class="fas fa-trash-can"></i></button> 
-        </div>`).join('') : '<p class="empty-msg">কোন রিমাইন্ডার সেট করা নেই</p>';
+        </div>`).join('');
 }
 
 window.confirmDelRem = (i) => {
@@ -1212,7 +1563,7 @@ function deleteReminder(i) {
 }
 
 /* ==========================
-🛠️ Section: 10 Modals & Reset
+🛠️ Section: 10 Modals & Reset - ENHANCED
 ========================== */
 
 function openModal(html) {
@@ -1240,7 +1591,7 @@ function showResetStep1() {
             </ul>
             <div class="divider-line"></div>
             <div class="input-reset-wrapper">
-                <label>নিশ্চিত করতে বড় হাতের অক্ষরে "RESET" লিখুন</label>
+                <label>নিশ্চিত করতে বড় হাতের অক্ষরে "RESET" লিখন</label>
                 <input type="text" id="confirmText" placeholder="RESET" autocomplete="off">
             </div>
             <div class="reset-footer">
@@ -1284,7 +1635,7 @@ function finalReset() {
 }
 
 /* ==========================
-📤 Section: 11 Export Functions
+📤 Section: 11 Export Functions - ENHANCED
 ========================== */
 
 function initExportFunctions() {
@@ -1297,13 +1648,23 @@ function initExportFunctions() {
     if (exportPDFBtn) exportPDFBtn.addEventListener('click', exportToPDF);
     if (exportPrintBtn) exportPrintBtn.addEventListener('click', printData);
     
-    // Fixed: Safe checks before setting . checked property
+    // Chart download buttons
+    $$('.download-chart-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const chartId = this.getAttribute('data-chart');
+            downloadChart(chartId);
+        });
+    });
+    
+    // Settings toggles
     const showMarksCheckbox = $('#showOnlyWithMarks');
     const fourthSubjectCheckbox = $('#includeFourthSubject');
     const fourthSubjectSelect = $('#fourthSubjectSelect');
+    const autoRefreshToggle = $('#autoRefreshToggle');
+    const autoLockToggle = $('#autoLockToggle');
     
     if (showMarksCheckbox) {
-        showMarksCheckbox. checked = showOnlyWithMarks;
+        showMarksCheckbox.checked = showOnlyWithMarks;
         showMarksCheckbox.addEventListener('change', function(e) {
             showOnlyWithMarks = e.target.checked;
             localStorage.setItem(LS_SHOW_ONLY_MARKS, showOnlyWithMarks);
@@ -1327,10 +1688,40 @@ function initExportFunctions() {
     if (fourthSubjectSelect) {
         fourthSubjectSelect.value = fourthSubject;
         fourthSubjectSelect.addEventListener('change', function(e) {
-            fourthSubject = e.target. value;
+            fourthSubject = e.target.value;
             localStorage.setItem(LS_FOURTH_SUBJECT, fourthSubject);
             renderSubjectDashboard();
             showToast('৪র্থ বিষয় সেভ করা হয়েছে');
+        });
+    }
+    
+    if (autoRefreshToggle) {
+        autoRefreshToggle.checked = autoRefreshEnabled;
+        autoRefreshToggle.addEventListener('change', function(e) {
+            autoRefreshEnabled = e.target.checked;
+            localStorage.setItem(LS_AUTO_REFRESH, autoRefreshEnabled);
+            if (autoRefreshEnabled) {
+                startAutoRefresh();
+                showToast('অটো রিফ্রেশ চালু করা হয়েছে');
+            } else {
+                stopAutoRefresh();
+                showToast('অটো রিফ্রেশ বন্ধ করা হয়েছে');
+            }
+        });
+    }
+    
+    if (autoLockToggle) {
+        autoLockToggle.checked = autoLockEnabled;
+        autoLockToggle.addEventListener('change', function(e) {
+            autoLockEnabled = e.target.checked;
+            localStorage.setItem(LS_AUTO_LOCK, autoLockEnabled);
+            if (autoLockEnabled) {
+                startInactivityTimer();
+                showToast('অটো লক চালু করা হয়েছে');
+            } else {
+                stopInactivityTimer();
+                showToast('অটো লক বন্ধ করা হয়েছে');
+            }
         });
     }
     
@@ -1342,7 +1733,9 @@ function initExportFunctions() {
 
 function updateFourthSubjectContainer() {
     const container = $('#fourthSubjectContainer');
-    container.style.display = includeFourthSubject ? 'flex' : 'none';
+    if (container) {
+        container.style.display = includeFourthSubject ? 'flex' : 'none';
+    }
 }
 
 async function exportToExcel() {
@@ -1352,7 +1745,7 @@ async function exportToExcel() {
     if (dataType === 'course' || dataType === 'all') {
         data = allEntries || [];
         headers = ['ক্রমিক', 'তারিখ', 'সময়', 'ব্রাঞ্চ মেরিট', 'কেন্দ্রীয় মেরিট'];
-        const rows = data.map(d => [d.serial, d.date, d.time, d.branch, d.central]);
+        const rows = data.map(d => [d.serial, formatDate(d.date), format12hr(d.time), d.branch, d.central]);
         
         if (dataType === 'course') {
             exportCSV(headers, rows, 'course_data.csv');
@@ -1362,14 +1755,15 @@ async function exportToExcel() {
     
     if (dataType === 'subject' || dataType === 'all') {
         data = subjectData || [];
-        headers = ['ক্রমিক', 'তারিখ', 'বিষয়', 'সিলেবাস', 'মোট নম্বর', 'প্রাপ্ত নম্বর', 'ব্রাঞ্চ মেরিট', 'কেন্দ্রীয় মেরিট'];
+        headers = ['ক্রমিক', 'তারিখ', 'বিষয়', 'সিলেবাস', 'মোট নম্বর', 'প্রাপ্ত নম্বর', 'শতকরা', 'ব্রাঞ্চ মেরিট', 'কেন্দ্রীয় মেরিট'];
         const rows = data.map(d => [
             d.serial, 
-            d.date, 
+            formatDate(d.date), 
             d.subject, 
             d.syllabus, 
             d.total_marks, 
             d.obtained_marks || '', 
+            d.obtained_marks !== null ? ((d.obtained_marks / d.total_marks) * 100).toFixed(1) + '%' : '',
             d.branch_merit || '', 
             d.central_merit || ''
         ]);
@@ -1382,17 +1776,20 @@ async function exportToExcel() {
     
     if (dataType === 'all') {
         showToast('দুই ধরনের ডাটাই প্রস্তুত করা হচ্ছে...');
+        // Export both
         exportCSV(headers, rows, 'fmt_tracker_all_data.csv');
     }
 }
 
 function exportCSV(headers, rows, filename) {
+    // Add BOM for UTF-8
+    const BOM = "\uFEFF";
     const csvContent = [
         headers.join(','),
-        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     ].join('\n');
     
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     
@@ -1409,35 +1806,40 @@ function exportCSV(headers, rows, filename) {
 
 async function exportToPDF() {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+    const doc = new jsPDF('p', 'mm', 'a4');
     const dataType = $('#exportDataType').value;
     
+    // Set font for Bangla support
+    doc.setFont('helvetica');
     doc.setFontSize(16);
-    doc.text('Udvash FMT Tracker - Report', 105, 15, { align: 'center' });
+    
+    // Title
+    doc.text('Udvash FMT Tracker - Report', 105, 20, { align: 'center' });
     
     doc.setFontSize(10);
-    doc.text(`রিপোর্ট তারিখ: ${new Date().toLocaleDateString('bn-BD')}`, 105, 22, { align: 'center' });
-    doc.text(`ডাটা টাইপ: ${dataType === 'course' ? 'কোর্স মেরিট' : dataType === 'subject' ? 'বিষয়ভিত্তিক' : 'সব ডাটা'}`, 105, 28, { align: 'center' });
+    doc.text(`রিপোর্ট তারিখ: ${new Date().toLocaleDateString('bn-BD')}`, 105, 28, { align: 'center' });
+    doc.text(`ডাটা টাইপ: ${dataType === 'course' ? 'কোর্স মেরিট' : dataType === 'subject' ? 'বিষয়ভিত্তিক' : 'সব ডাটা'}`, 105, 34, { align: 'center' });
     
     if (dataType === 'course') {
         const data = allEntries || [];
         const headers = [['ক্রমিক', 'তারিখ', 'সময়', 'ব্রাঞ্চ', 'কেন্দ্রীয়']];
-        const rows = data.map(d => [d.serial, d.date, d.time, d.branch, d.central]);
+        const rows = data.map(d => [d.serial, formatDate(d.date), format12hr(d.time), d.branch, d.central]);
         
         doc.autoTable({
             head: headers,
             body: rows,
-            startY: 35,
+            startY: 40,
             theme: 'grid',
-            headStyles: { fillColor: [99, 102, 241] },
-            styles: { font: 'helvetica', fontSize: 9 }
+            headStyles: { fillColor: [99, 102, 241], textColor: 255 },
+            styles: { font: 'helvetica', fontSize: 9 },
+            margin: { left: 10, right: 10 }
         });
     } else if (dataType === 'subject') {
         const data = subjectData || [];
         const headers = [['ক্রমিক', 'তারিখ', 'বিষয়', 'নম্বর', 'ব্রাঞ্চ', 'কেন্দ্রীয়']];
         const rows = data.map(d => [
             d.serial, 
-            d.date, 
+            formatDate(d.date), 
             d.subject.substring(0, 15),
             d.obtained_marks !== null ? `${d.obtained_marks}/${d.total_marks}` : '-/-',
             d.branch_merit || '-',
@@ -1447,19 +1849,21 @@ async function exportToPDF() {
         doc.autoTable({
             head: headers,
             body: rows,
-            startY: 35,
+            startY: 40,
             theme: 'grid',
-            headStyles: { fillColor: [99, 102, 241] },
-            styles: { font: 'helvetica', fontSize: 8 }
+            headStyles: { fillColor: [99, 102, 241], textColor: 255 },
+            styles: { font: 'helvetica', fontSize: 8 },
+            margin: { left: 10, right: 10 }
         });
     }
     
+    // Footer with developer info and page numbers
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
-        doc.text(`পৃষ্ঠা ${i}/${pageCount}`, 105, doc.internal.pageSize.height - 10, { align: 'center' });
-        doc.text('ডেভেলপার: MD Turzo - https://mdturzo.odoo.com', 105, doc.internal.pageSize.height - 5, { align: 'center' });
+        doc.text(`পৃষ্ঠা ${i}/${pageCount}`, 105, doc.internal.pageSize.height - 15, { align: 'center' });
+        doc.text('ডেভেলপার: Muhtasim Rahman (Turzo) - https://mdturzo.odoo.com', 105, doc.internal.pageSize.height - 10, { align: 'center' });
     }
     
     doc.save(`fmt_tracker_${dataType}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -1471,25 +1875,50 @@ function printData() {
     let printContent = '';
     
     printContent += `
-        <div style="font-family: 'Hind Siliguri', 'Inter', sans-serif; padding: 20px;">
-            <h1 style="text-align: center; color: #6366f1; margin-bottom: 5px;">Udvash FMT Tracker</h1>
-            <p style="text-align: center; color: #666; margin-bottom: 20px;">
-                রিপোর্ট তারিখ: ${new Date().toLocaleDateString('bn-BD')}<br>
-                ডাটা টাইপ: ${dataType === 'course' ? 'কোর্স মেরিট' : dataType === 'subject' ? 'বিষয়ভিত্তিক' : 'সব ডাটা'}
-            </p>
+        <!DOCTYPE html>
+        <html lang="bn">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Udvash FMT Tracker - Print</title>
+            <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+            <style>
+                @media print {
+                    @page { margin: 15mm; }
+                    body { margin: 0; font-family: 'Hind Siliguri', sans-serif; }
+                    .print-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #6366f1; padding-bottom: 10px; }
+                    .print-header h1 { color: #6366f1; margin: 0 0 5px 0; font-size: 24px; }
+                    .print-meta { color: #666; font-size: 14px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { background: #6366f1; color: white; padding: 10px; text-align: left; font-weight: 600; }
+                    td { padding: 8px 10px; border-bottom: 1px solid #ddd; }
+                    tr:nth-child(even) { background: #f9f9f9; }
+                    .print-footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #666; }
+                    .developer-info { display: flex; justify-content: space-between; margin-top: 5px; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="print-header">
+                <h1>Udvash FMT Tracker</h1>
+                <div class="print-meta">
+                    রিপোর্ট তারিখ: ${new Date().toLocaleDateString('bn-BD')}<br>
+                    ডাটা টাইপ: ${dataType === 'course' ? 'কোর্স মেরিট' : dataType === 'subject' ? 'বিষয়ভিত্তিক' : 'সব ডাটা'}
+                </div>
+            </div>
     `;
     
     if (dataType === 'course') {
         const data = allEntries || [];
         printContent += `
-            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+            <table>
                 <thead>
-                    <tr style="background-color: #6366f1; color: white;">
-                        <th style="padding: 10px; border: 1px solid #ddd;">ক্রমিক</th>
-                        <th style="padding: 10px; border: 1px solid #ddd;">তারিখ</th>
-                        <th style="padding: 10px; border: 1px solid #ddd;">সময়</th>
-                        <th style="padding: 10px; border: 1px solid #ddd;">ব্রাঞ্চ</th>
-                        <th style="padding: 10px; border: 1px solid #ddd;">কেন্দ্রীয়</th>
+                    <tr>
+                        <th>ক্রমিক</th>
+                        <th>তারিখ</th>
+                        <th>সময়</th>
+                        <th>ব্রাঞ্চ</th>
+                        <th>কেন্দ্রীয়</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1498,11 +1927,11 @@ function printData() {
         data.forEach(d => {
             printContent += `
                 <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${d.serial}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${d.date}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${d.time}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${d.branch}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${d.central}</td>
+                    <td style="text-align: center;">${d.serial}</td>
+                    <td>${formatDate(d.date)}</td>
+                    <td>${format12hr(d.time)}</td>
+                    <td style="text-align: center;">${d.branch}</td>
+                    <td style="text-align: center;">${d.central}</td>
                 </tr>
             `;
         });
@@ -1514,15 +1943,15 @@ function printData() {
     } else if (dataType === 'subject') {
         const data = subjectData || [];
         printContent += `
-            <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px;">
+            <table>
                 <thead>
-                    <tr style="background-color: #6366f1; color: white;">
-                        <th style="padding: 8px; border: 1px solid #ddd;">ক্রমিক</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">তারিখ</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">বিষয়</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">নম্বর</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">ব্রাঞ্চ</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">কেন্দ্রীয়</th>
+                    <tr>
+                        <th>ক্রমিক</th>
+                        <th>তারিখ</th>
+                        <th>বিষয়</th>
+                        <th>নম্বর</th>
+                        <th>ব্রাঞ্চ</th>
+                        <th>কেন্দ্রীয়</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1531,12 +1960,12 @@ function printData() {
         data.forEach(d => {
             printContent += `
                 <tr>
-                    <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${d.serial}</td>
-                    <td style="padding: 6px; border: 1px solid #ddd;">${d.date}</td>
-                    <td style="padding: 6px; border: 1px solid #ddd;">${d.subject}</td>
-                    <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${d.obtained_marks !== null ? `${d.obtained_marks}/${d.total_marks}` : '-/-'}</td>
-                    <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${d.branch_merit || '-'}</td>
-                    <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${d.central_merit || '-'}</td>
+                    <td style="text-align: center;">${d.serial}</td>
+                    <td>${formatDate(d.date)}</td>
+                    <td>${d.subject}</td>
+                    <td style="text-align: center;">${d.obtained_marks !== null ? `${d.obtained_marks}/${d.total_marks}` : '-/-'}</td>
+                    <td style="text-align: center;">${d.branch_merit || '-'}</td>
+                    <td style="text-align: center;">${d.central_merit || '-'}</td>
                 </tr>
             `;
         });
@@ -1548,30 +1977,19 @@ function printData() {
     }
     
     printContent += `
-            <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; text-align: center; font-size: 11px; color: #666;">
-                <p>ডেভেলপার: MD Turzo</p>
-                <p>ওয়েবসাইট: https://mdturzo.odoo.com</p>
-                <p>Udvash FMT Tracker Pro V18.0</p>
+            <div class="print-footer">
+                <div>Udvash FMT Tracker Pro V19.0</div>
+                <div class="developer-info">
+                    <div>ডেভেলপার: Muhtasim Rahman (Turzo)</div>
+                    <div>ওয়েবসাইট: https://mdturzo.odoo.com</div>
+                </div>
             </div>
-        </div>
+        </body>
+        </html>
     `;
     
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Udvash FMT Tracker - Print</title>
-                <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
-                <style>
-                    @media print {
-                        @page { margin: 20px; }
-                        body { margin: 0; }
-                    }
-                </style>
-            </head>
-            <body>${printContent}</body>
-        </html>
-    `);
+    printWindow.document.write(printContent);
     printWindow.document.close();
     printWindow.focus();
     
@@ -1581,6 +1999,27 @@ function printData() {
     }, 250);
 }
 
+function downloadChart(chartId) {
+    const chartMap = {
+        'branchChart': branchChart,
+        'centralChart': centralChart,
+        'subjectMarksChart': subjectChart,
+        'subjectBranchChart': subjectBranchChart,
+        'subjectCentralChart': subjectCentralChart
+    };
+    
+    const chart = chartMap[chartId];
+    if (!chart) return;
+    
+    const canvas = chart.canvas;
+    const link = document.createElement('a');
+    link.download = `chart_${chartId}_${new Date().getTime()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    
+    showToast('চার্ট ডাউনলোড করা হয়েছে', 'success');
+}
+
 function showUserManual() {
     openModal(`
         <div class="reset-top-banner">
@@ -1588,9 +2027,90 @@ function showUserManual() {
             <h3>ব্যবহার নির্দেশিকা</h3>
         </div>
         <div class="reset-body">
-            <p style="text-align: center; color: var(--text-muted); margin-bottom: 20px;">
-                এই ফিচারটি ডেভেলপমেন্ট চলছে। শীঘ্রই আসছে...
-            </p>
+            <div class="manual-content">
+                <h4>🌐 FMT Tracker Pro V19 - ব্যবহার নির্দেশিকা</h4>
+                
+                <div class="manual-section">
+                    <h5><i class="fas fa-lock"></i> সিকিউরিটি সিস্টেম</h5>
+                    <ul>
+                        <li>ডিফল্ট পিন: <strong>000000</strong></li>
+                        <li>৬ ডিজিটের পিন ব্যবহার করুন</li>
+                        <li>অটো ভেরিফাই চালু থাকলে পিন পূর্ণ হলে অটো লগইন হবে</li>
+                    </ul>
+                </div>
+                
+                <div class="manual-section">
+                    <h5><i class="fas fa-layer-group"></i> দুটি মোড</h5>
+                    <ul>
+                        <li><strong>কোর্স মেরিট:</strong> পরীক্ষার মেরিট পজিশন ট্র্যাকিং</li>
+                        <li><strong>বিষয়ভিত্তিক:</strong> প্রতিটি বিষয়ের নম্বর ও মেরিট ট্র্যাকিং</li>
+                    </ul>
+                </div>
+                
+                <div class="manual-section">
+                    <h5><i class="fas fa-pen-to-square"></i> ডাটা এন্ট্রি</h5>
+                    <ul>
+                        <li>কোর্স মেরিট: ব্রাঞ্চ ও সেন্ট্রাল মেরিট ইনপুট দিন</li>
+                        <li>বিষয়ভিত্তিক: বিষয় সিলেক্ট করে নম্বর ও মেরিট দিন</li>
+                        <li>দশমিক সংখ্যা ব্যবহার করতে পারেন (বিষয় নম্বরের জন্য)</li>
+                    </ul>
+                </div>
+                
+                <div class="manual-section">
+                    <h5><i class="fas fa-filter"></i> ফিল্টার সিস্টেম</h5>
+                    <ul>
+                        <li>বছর, মাস, তারিখ রেঞ্জ দিয়ে ফিল্টার করুন</li>
+                        <li>স্মার্ট ফিল্টার: সর্বোচ্চ নম্বর, সেরা র‍্যাংক ইত্যাদি</li>
+                        <li>বিষয় অনুযায়ী আলাদা ফিল্টার</li>
+                    </ul>
+                </div>
+                
+                <div class="manual-section">
+                    <h5><i class="fas fa-chart-line"></i> বিশ্লেষণ</h5>
+                    <ul>
+                        <li>গ্রাফে সময়ের সাথে মেরিটের পরিবর্তন দেখুন</li>
+                        <li>বিষয়ভিত্তিক নম্বর ও মেরিটের গ্রাফ</li>
+                        <li>সারসংক্ষেপ: সেরা পারফরম্যান্স, গড় নম্বর, GPA</li>
+                    </ul>
+                </div>
+                
+                <div class="manual-section">
+                    <h5><i class="fas fa-cog"></i> সেটিংস</h5>
+                    <ul>
+                        <li>থিম পরিবর্তন: লাইট/ডার্ক মোড</li>
+                        <li>রিমাইন্ডার: নির্দিষ্ট সময়ে নোটিফিকেশন</li>
+                        <li>এক্সপোর্ট: PDF, Excel, Print</li>
+                        <li>৪র্থ বিষয় সেটিং: GPA গণনায় অন্তর্ভুক্ত করুন</li>
+                    </ul>
+                </div>
+                
+                <div class="manual-section">
+                    <h5><i class="fas fa-mobile-alt"></i> মোবাইল অ্যাপ</h5>
+                    <ul>
+                        <li>PWA সমর্থিত - হোম স্ক্রিনে অ্যাপ যোগ করুন</li>
+                        <li>অফলাইন কাজ করে (ক্যাশে ডাটা)</li>
+                        <li>নোটিফিকেশন সমর্থিত</li>
+                    </ul>
+                </div>
+                
+                <div class="manual-tips">
+                    <h5><i class="fas fa-lightbulb"></i> গুরুত্বপূর্ণ টিপস</h5>
+                    <ul>
+                        <li>নিয়মিত ডাটা আপডেট করুন</li>
+                        <li>ফিল্টার ব্যবহার করে নির্দিষ্ট ডাটা দেখুন</li>
+                        <li>গ্রাফ ডাউনলোড করে সংরক্ষণ করুন</li>
+                        <li>অটো লক: ২ মিনিট ইনঅ্যাকটিভ থাকলে লক হবে</li>
+                        <li>অটো রিফ্রেশ: ১০ মিনিট পর পর ডাটা আপডেট</li>
+                    </ul>
+                </div>
+                
+                <div class="manual-contact">
+                    <p><strong>ডেভেলপার:</strong> Muhtasim Rahman (Turzo)</p>
+                    <p><strong>ওয়েবসাইট:</strong> <a href="https://mdturzo.odoo.com" target="_blank">https://mdturzo.odoo.com</a></p>
+                    <p><strong>GitHub:</strong> <a href="https://github.com/muhtasim-rahman/UFMT-SSC26" target="_blank">প্রোজেক্ট রিপোজিটরি</a></p>
+                </div>
+            </div>
+            
             <div class="reset-footer">
                 <button class="btn-reset-cancel" onclick="closeModal()">ঠিক আছে</button>
             </div>
@@ -1599,7 +2119,433 @@ function showUserManual() {
 }
 
 /* ==========================
-⚙️ Section: 12 Events & Init
+⚙️ Section: 12 V19 New Features
+========================== */
+
+// ---- ( Auto-refresh System ) ----
+function startAutoRefresh() {
+    if (!autoRefreshEnabled) return;
+    
+    // Clear existing timer
+    if (refreshTimer) clearInterval(refreshTimer);
+    
+    // Refresh every 10 minutes (600000 ms)
+    refreshTimer = setInterval(() => {
+        if (navigator.onLine) {
+            fetchAllData();
+            updateDateDisplay();
+            showToast('ডাটা অটো রিফ্রেশ করা হয়েছে', 'success');
+        }
+    }, 600000); // 10 minutes
+    
+    // Also refresh at midnight
+    scheduleMidnightRefresh();
+}
+
+function stopAutoRefresh() {
+    if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+    }
+}
+
+function scheduleMidnightRefresh() {
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const timeToMidnight = midnight - now;
+    
+    setTimeout(() => {
+        fetchAllData();
+        updateDateDisplay();
+        scheduleMidnightRefresh(); // Schedule next midnight
+    }, timeToMidnight);
+}
+
+// ---- ( Inactivity Timer ) ----
+function startInactivityTimer() {
+    if (!autoLockEnabled) return;
+    
+    // Clear existing timer
+    if (inactivityTimer) clearInterval(inactivityTimer);
+    
+    // Reset activity time on user interaction
+    document.addEventListener('mousemove', resetInactivityTimer);
+    document.addEventListener('keypress', resetInactivityTimer);
+    document.addEventListener('click', resetInactivityTimer);
+    document.addEventListener('scroll', resetInactivityTimer);
+    document.addEventListener('touchstart', resetInactivityTimer);
+    
+    // Check every minute
+    inactivityTimer = setInterval(() => {
+        const now = Date.now();
+        const inactiveTime = now - lastActivityTime;
+        
+        if (inactiveTime > 120000) { // 2 minutes
+            triggerAutoLock();
+        }
+    }, 60000); // Check every minute
+}
+
+function stopInactivityTimer() {
+    if (inactivityTimer) {
+        clearInterval(inactivityTimer);
+        inactivityTimer = null;
+    }
+}
+
+function resetInactivityTimer() {
+    lastActivityTime = Date.now();
+}
+
+function triggerAutoLock() {
+    if (!$('#app').classList.contains('hidden')) {
+        showToast('২ মিনিট ইনঅ্যাকটিভ থাকায় লক করা হয়েছে', 'warning');
+        $('#app').classList.add('hidden');
+        $('#pinGate').classList.remove('hidden');
+        $('#pinInput').value = '';
+        renderPinDots('');
+        stopInactivityTimer();
+    }
+}
+
+// ---- ( Table Row Actions ) ----
+function showActionMenu(button, type) {
+    // Hide any existing menu
+    $('#actionMenu').classList.add('hidden');
+    
+    // Set current edit data
+    currentEditType = type;
+    currentEditRow = parseInt(button.getAttribute('data-serial'));
+    
+    // Position the menu
+    const rect = button.getBoundingClientRect();
+    const menu = $('#actionMenu');
+    menu.style.top = `${rect.bottom + 5}px`;
+    menu.style.left = `${rect.left}px`;
+    menu.classList.remove('hidden');
+    
+    // Close menu when clicking elsewhere
+    setTimeout(() => {
+        document.addEventListener('click', closeActionMenu);
+    }, 100);
+}
+
+function closeActionMenu(e) {
+    if (e && e.target.closest('#actionMenu')) return;
+    
+    $('#actionMenu').classList.add('hidden');
+    document.removeEventListener('click', closeActionMenu);
+}
+
+// Handle action menu clicks
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.action-menu-item')) {
+        const action = e.target.closest('.action-menu-item').getAttribute('data-action');
+        handleTableAction(action);
+        closeActionMenu();
+    }
+});
+
+function handleTableAction(action) {
+    if (!currentEditRow || !currentEditType) return;
+    
+    switch(action) {
+        case 'edit':
+            showEditModal(currentEditType, currentEditRow);
+            break;
+        case 'delete':
+            showDeleteConfirm(currentEditType, currentEditRow);
+            break;
+        case 'cancel':
+            // Do nothing
+            break;
+    }
+}
+
+function showEditModal(type, serial) {
+    if (type === 'course') {
+        const entry = allEntries.find(e => e.serial === serial);
+        if (!entry) return;
+        
+        const modalContent = `
+            <h4>কোর্স ডাটা সম্পাদনা</h4>
+            <p style="margin-bottom: 15px; color: var(--text-muted);">R-${serial}: ${formatDate(entry.date)} ${format12hr(entry.time)}</p>
+            
+            <div class="form-row">
+                <div class="input-container">
+                    <label>ব্রাঞ্চ মেরিট</label>
+                    <input type="number" id="editBranch" value="${entry.branch}" min="1">
+                </div>
+                <div class="input-container">
+                    <label>সেন্ট্রাল মেরিট</label>
+                    <input type="number" id="editCentral" value="${entry.central}" min="1">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="input-container">
+                    <label>তারিখ</label>
+                    <input type="date" id="editDate" value="${entry.date}">
+                </div>
+                <div class="input-container">
+                    <label>সময়</label>
+                    <input type="time" id="editTime" value="${entry.time}">
+                </div>
+            </div>
+        `;
+        
+        $('#editModalTitle').textContent = 'কোর্স ডাটা সম্পাদনা';
+        $('#editModalBody').innerHTML = modalContent;
+        $('#editModal').classList.remove('hidden');
+        
+        // Set up save handler
+        $('.save-edit').onclick = () => saveCourseEdit(serial);
+        
+    } else if (type === 'subject') {
+        const subject = subjectData.find(s => s.serial === serial);
+        if (!subject) return;
+        
+        const modalContent = `
+            <h4>বিষয় ডাটা সম্পাদনা</h4>
+            <p style="margin-bottom: 15px; color: var(--text-muted);">${subject.subject} (${formatDate(subject.date)})</p>
+            
+            <div class="form-row">
+                <div class="input-container">
+                    <label>প্রাপ্ত নম্বর</label>
+                    <input type="number" id="editObtained" value="${subject.obtained_marks || ''}" step="0.01" min="0">
+                </div>
+                <div class="input-container">
+                    <label>মোট নম্বর</label>
+                    <input type="number" id="editTotal" value="${subject.total_marks}" min="1">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="input-container">
+                    <label>ব্রাঞ্চ মেরিট</label>
+                    <input type="number" id="editSubjectBranch" value="${subject.branch_merit || ''}" min="1">
+                </div>
+                <div class="input-container">
+                    <label>কেন্দ্রীয় মেরিট</label>
+                    <input type="number" id="editSubjectCentral" value="${subject.central_merit || ''}" min="1">
+                </div>
+            </div>
+        `;
+        
+        $('#editModalTitle').textContent = 'বিষয় ডাটা সম্পাদনা';
+        $('#editModalBody').innerHTML = modalContent;
+        $('#editModal').classList.remove('hidden');
+        
+        // Set up save handler
+        $('.save-edit').onclick = () => saveSubjectEdit(serial);
+    }
+}
+
+async function saveCourseEdit(serial) {
+    const branch = $('#editBranch').value;
+    const central = $('#editCentral').value;
+    const date = $('#editDate').value;
+    const time = $('#editTime').value;
+    
+    if (!branch || !central || !date || !time) {
+        showToast('সমস্ত তথ্য পূরণ করুন', 'error');
+        return;
+    }
+    
+    const payload = {
+        type: 'update_course',
+        serial: serial,
+        branch: branch,
+        central: central,
+        date: date,
+        time: time
+    };
+    
+    try {
+        const response = await fetch(getApiUrl(), {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            showToast('ডাটা সফলভাবে আপডেট হয়েছে', 'success');
+            $('#editModal').classList.add('hidden');
+            await fetchAllData();
+            
+            // Show confirmation
+            openModal(`
+                <div style="padding:25px; text-align:center;">
+                    <i class="fas fa-check-circle" style="font-size:30px; color:#10b981; margin-bottom:15px;"></i>
+                    <h3 style="margin:0 0 10px;">আপডেট সফল!</h3>
+                    <p style="font-size:13px; color:#64748b; margin-bottom:20px;">
+                        R-${serial} এর ডাটা সফলভাবে আপডেট করা হয়েছে।<br>
+                        ব্রাঞ্চ: ${branch}, সেন্ট্রাল: ${central}<br>
+                        তারিখ: ${formatDate(date)}, সময়: ${format12hr(time)}
+                    </p>
+                    <button class="btn-reset-confirm" onclick="closeModal()">ঠিক আছে</button>
+                </div>
+            `);
+        } else {
+            showToast('আপডেট ব্যর্থ হয়েছে', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('নেটওয়ার্ক ত্রুটি', 'error');
+    }
+}
+
+async function saveSubjectEdit(serial) {
+    const obtained = $('#editObtained').value;
+    const total = $('#editTotal').value;
+    const branch = $('#editSubjectBranch').value;
+    const central = $('#editSubjectCentral').value;
+    
+    if (!total) {
+        showToast('মোট নম্বর পূরণ করুন', 'error');
+        return;
+    }
+    
+    const payload = {
+        type: 'update_subject',
+        serial: serial,
+        my_marks: obtained || "",
+        total: total,
+        branch: branch || "",
+        central: central || ""
+    };
+    
+    try {
+        const response = await fetch(getApiUrl(), {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            showToast('বিষয় ডাটা সফলভাবে আপডেট হয়েছে', 'success');
+            $('#editModal').classList.add('hidden');
+            await fetchAllData();
+            
+            // Show confirmation
+            openModal(`
+                <div style="padding:25px; text-align:center;">
+                    <i class="fas fa-check-circle" style="font-size:30px; color:#10b981; margin-bottom:15px;"></i>
+                    <h3 style="margin:0 0 10px;">আপডেট সফল!</h3>
+                    <p style="font-size:13px; color:#64748b; margin-bottom:20px;">
+                        সিরিয়াল ${serial} এর ডাটা সফলভাবে আপডেট করা হয়েছে।<br>
+                        প্রাপ্ত নম্বর: ${obtained || 'N/A'}, মোট নম্বর: ${total}<br>
+                        ব্রাঞ্চ: ${branch || 'N/A'}, সেন্ট্রাল: ${central || 'N/A'}
+                    </p>
+                    <button class="btn-reset-confirm" onclick="closeModal()">ঠিক আছে</button>
+                </div>
+            `);
+        } else {
+            showToast('আপডেট ব্যর্থ হয়েছে', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('নেটওয়ার্ক ত্রুটি', 'error');
+    }
+}
+
+function showDeleteConfirm(type, serial) {
+    if (type === 'course') {
+        openModal(`
+            <div style="padding:25px; text-align:center;">
+                <i class="fas fa-trash-alt" style="font-size:30px; color:#ef4444; margin-bottom:15px;"></i>
+                <h3 style="margin:0 0 10px;">ডিলিট নিশ্চিত করুন</h3>
+                <p style="font-size:13px; color:#64748b; margin-bottom:20px;">
+                    আপনি কি R-${serial} এর সম্পূর্ণ রোড ডিলিট করতে চান?<br>
+                    এই কাজটি রিভার্স করা যাবে না।
+                </p>
+                <div class="reset-footer">
+                    <button class="btn-reset-cancel" onclick="closeModal()">না</button>
+                    <button class="btn-reset-confirm" style="background:#ef4444;" onclick="deleteCourseEntry(${serial})">হ্যাঁ, ডিলিট করুন</button>
+                </div>
+            </div>
+        `);
+    } else if (type === 'subject') {
+        openModal(`
+            <div style="padding:25px; text-align:center;">
+                <i class="fas fa-trash-alt" style="font-size:30px; color:#ef4444; margin-bottom:15px;"></i>
+                <h3 style="margin:0 0 10px;">ডাটা ক্লিয়ার করুন</h3>
+                <p style="font-size:13px; color:#64748b; margin-bottom:20px;">
+                    আপনি কি সিরিয়াল ${serial} এর নম্বর ও মেরিট ডাটা ক্লিয়ার করতে চান?<br>
+                    শুধুমাত্র প্রাপ্ত নম্বর, ব্রাঞ্চ ও সেন্ট্রাল মেরিট ক্লিয়ার হবে।
+                </p>
+                <div class="reset-footer">
+                    <button class="btn-reset-cancel" onclick="closeModal()">না</button>
+                    <button class="btn-reset-confirm" style="background:#ef4444;" onclick="clearSubjectData(${serial})">হ্যাঁ, ক্লিয়ার করুন</button>
+                </div>
+            </div>
+        `);
+    }
+}
+
+async function deleteCourseEntry(serial) {
+    try {
+        const payload = {
+            type: 'delete_course',
+            serial: serial
+        };
+        
+        const response = await fetch(getApiUrl(), {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            showToast('রোড সফলভাবে ডিলিট হয়েছে', 'success');
+            closeModal();
+            await fetchAllData();
+        } else {
+            showToast('ডিলিট ব্যর্থ হয়েছে', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('নেটওয়ার্ক ত্রুটি', 'error');
+    }
+}
+
+async function clearSubjectData(serial) {
+    try {
+        const payload = {
+            type: 'update_subject',
+            serial: serial,
+            my_marks: "",
+            branch: "",
+            central: ""
+        };
+        
+        const response = await fetch(getApiUrl(), {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            showToast('ডাটা সফলভাবে ক্লিয়ার হয়েছে', 'success');
+            closeModal();
+            await fetchAllData();
+        } else {
+            showToast('ক্লিয়ার ব্যর্থ হয়েছে', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('নেটওয়ার্ক ত্রুটি', 'error');
+    }
+}
+
+// Close edit modal handlers
+$('.close-edit-modal').addEventListener('click', () => {
+    $('#editModal').classList.add('hidden');
+});
+
+$('.cancel-edit').addEventListener('click', () => {
+    $('#editModal').classList.add('hidden');
+});
+
+/* ==========================
+⚙️ Section: 13 Events & Init - ENHANCED
 ========================== */
 
 function initOfflineAndPWA() {
@@ -1651,6 +2597,7 @@ function setupEvents() {
     $$(".key-btn").forEach(btn => btn.onclick = () => {
         if(navigator.vibrate) navigator.vibrate(20);
         handleKeyPress(btn.dataset.key);
+        resetInactivityTimer();
     });
     
     const pinInput = $("#pinInput");
@@ -1658,6 +2605,8 @@ function setupEvents() {
     
     // 2. Global Keyboard
     document.addEventListener("keydown", (e) => {
+        resetInactivityTimer();
+        
         if ($("#pinGate").classList.contains("hidden")) return;
         if (e.ctrlKey || e.altKey || e.metaKey || (e.key.length > 1 && e.key !== "Backspace" && e.key !== "Enter")) return;
 
@@ -1676,14 +2625,18 @@ function setupEvents() {
         autoPinVerify = e.target.checked;
         localStorage.setItem(LS_PIN_AUTO, autoPinVerify);
         showToast(autoPinVerify ? "অটো পিন চালু" : "ম্যানুয়াল পিন চালু");
+        resetInactivityTimer();
     };
+    
     if ($("#pinViewToggle")) $("#pinViewToggle").onchange = toggleLockPinView;
 
     const handleTheme = isDark => {
         document.body.classList.toggle("dark-theme", isDark);
         if ($("#darkToggleSet")) $("#darkToggleSet").checked = isDark;
         localStorage.setItem(LS_THEME, isDark ? "dark" : "light");
+        resetInactivityTimer();
     };
+    
     if ($("#pinThemeToggle")) $("#pinThemeToggle").onclick = () => handleTheme(!document.body.classList.contains("dark-theme"));
     $("#themeToggle").onclick = () => handleTheme(!document.body.classList.contains("dark-theme"));
     if ($("#darkToggleSet")) $("#darkToggleSet").onchange = e => handleTheme(e.target.checked);
@@ -1696,11 +2649,8 @@ function setupEvents() {
             $$(".tabBtn").forEach(b => b.classList.toggle("active", b.dataset.target === target));
             $$(".m-nav-link").forEach(b => b.classList.toggle("active", b.dataset.target === target));
             
-            const showFilter = (target === "tabTable" || target === "tabGraph");
-            if ($("#filterBar")) $("#filterBar").classList.toggle("hidden", !showFilter || appMode !== 'course');
-            if ($("#subjectFilterBar")) $("#subjectFilterBar").classList.toggle("hidden", !showFilter || appMode !== 'subject');
-            
             updateViewTitle();
+            resetInactivityTimer();
             
             if (window.innerWidth < 768) $("#sidebar").classList.add("collapsed");
             if (target === "tabGraph") {
@@ -1713,19 +2663,29 @@ function setupEvents() {
     // 5. Mode Switcher
     if ($("#btnModeCourse")) $("#btnModeCourse").onclick = () => switchMode('course');
     if ($("#btnModeSubject")) $("#btnModeSubject").onclick = () => switchMode('subject');
+    if ($("#btnModeCourseHeader")) $("#btnModeCourseHeader").onclick = () => switchMode('course');
+    if ($("#btnModeSubjectHeader")) $("#btnModeSubjectHeader").onclick = () => switchMode('subject');
 
     // 6. Filters
-    ["yearSelect", "monthSelect", "startDate", "endDate"].forEach(id => $(`#${id}`) && ($(`#${id}`).onchange = renderDashboard));
-    $("#resetFilters").onclick = () => {
-        ["yearSelect", "monthSelect", "startDate", "endDate"].forEach(id => $(`#${id}`) && ($(`#${id}`).value = ""));
+    if ($("#applyFilters")) $("#applyFilters").onclick = renderDashboard;
+    if ($("#resetFilters")) $("#resetFilters").onclick = () => {
+        $("#yearSelect").value = "";
+        $("#monthSelect").value = "";
+        $("#startDate").value = "";
+        $("#endDate").value = "";
+        $("#maxBranch").value = "";
+        $("#maxCentral").value = "";
         renderDashboard();
         showToast("ফিল্টার রিসেট");
+        resetInactivityTimer();
     };
     
     $("#refreshDataBtn").onclick = async () => { 
         await fetchAllData(); 
         showToast("ডাটা রিফ্রেশ করা হয়েছে", "success"); 
+        resetInactivityTimer();
     };
+    
     $("#saveEntry").onclick = submitEntry;
 
     // 7. Subject Events
@@ -1733,18 +2693,21 @@ function setupEvents() {
     if ($("#btnSaveSubject")) $("#btnSaveSubject").addEventListener('click', submitSubjectEntry);
     
     // Subject Filters
-    ['subjectFilter', 'smartFilter', 'subjectYearSelect', 'subjectMonthSelect'].forEach(id => {
-        const element = $(`#${id}`);
-        if (element) element.addEventListener('change', () => renderSubjectDashboard());
+    if ($("#applySubjectFilters")) $("#applySubjectFilters").addEventListener('click', () => {
+        renderSubjectDashboard();
+        resetInactivityTimer();
     });
     
     if ($("#resetSubjectFilters")) $("#resetSubjectFilters").addEventListener('click', () => {
-        ['subjectFilter', 'smartFilter', 'subjectYearSelect', 'subjectMonthSelect'].forEach(id => {
-            const element = $(`#${id}`);
-            if (element) element.value = '';
-        });
+        $("#subjectFilter").value = "";
+        $("#smartFilter").value = "";
+        $("#subjectYearSelect").value = "";
+        $("#subjectMonthSelect").value = "";
+        $("#minMarks").value = "";
+        $("#subjectMaxBranch").value = "";
         renderSubjectDashboard();
         showToast('ফিল্টার রিসেট করা হয়েছে');
+        resetInactivityTimer();
     });
 
     // 8. Notifications
@@ -1756,7 +2719,9 @@ function setupEvents() {
         localStorage.setItem(LS_NOTIFS, JSON.stringify(notifTimes));
         renderReminders();
         showToast(`নতুন রিমাইন্ডার যোগ হয়েছে (${format12hr(t)})`, "success");
+        resetInactivityTimer();
     };
+    
     const nToggle = $('#notifEnableToggle');
     if (nToggle) {
         nToggle.checked = notifEnabled;
@@ -1765,6 +2730,7 @@ function setupEvents() {
             localStorage.setItem(LS_NOTIF_STATUS, notifEnabled);
             showToast(notifEnabled ? "নোটিফিকেশন চালু" : "নোটিফিকেশন বন্ধ");
             if(notifEnabled) requestNotifPermission();
+            resetInactivityTimer();
         };
     }
 
@@ -1780,6 +2746,8 @@ function setupEvents() {
 
     // 11. Infinite Scroll
     window.addEventListener("scroll", () => {
+        resetInactivityTimer();
+        
         if (appMode === 'course' && pMode === "infinite" && !$("#endMessage").classList.contains("hidden")) return;
         if (appMode === 'course' && pMode === "infinite") {
             if (document.documentElement.scrollTop + document.documentElement.clientHeight >= document.documentElement.scrollHeight - 50) {
@@ -1793,13 +2761,23 @@ function setupEvents() {
             }
         }
     });
+
+    // 12. Click anywhere to reset inactivity timer
+    document.addEventListener('click', resetInactivityTimer);
+    document.addEventListener('touchstart', resetInactivityTimer);
+    document.addEventListener('keypress', resetInactivityTimer);
+    document.addEventListener('scroll', resetInactivityTimer);
+    document.addEventListener('mousemove', resetInactivityTimer);
 }
 
 // ---- ( App Entry Point ) ----
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Load Theme
-    if (localStorage.getItem(LS_THEME) === "dark") {
-        document.body.classList.add("dark-theme");
+    // 1. Load Theme based on device preference
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem(LS_THEME);
+    
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        document.body.classList.add('dark-theme');
         if ($("#darkToggleSet")) $("#darkToggleSet").checked = true;
     }
 
@@ -1813,6 +2791,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 3. Set initial mode UI
     updateModeUI(appMode);
     updateViewTitle();
+    $('#currentModeText').textContent = appMode === 'course' ? 'কোর্স ভিত্তিক' : 'বিষয় ভিত্তিক';
     
     // 4. Initial Focus
     if (window.innerWidth > 992) $("#pinInput")?.focus();
@@ -1823,7 +2802,19 @@ document.addEventListener("DOMContentLoaded", () => {
     $$(".p-btn").forEach(b => b.classList.toggle("active", b.getAttribute("onclick").includes(pMode)));
     
     // 6. Start notification checks
-    setInterval(checkNotifications, 5000);
+    setInterval(checkNotifications, 60000); // Check every minute
+    
+    // 7. Start auto-refresh and inactivity timer
+    if (autoRefreshEnabled) startAutoRefresh();
+    if (autoLockEnabled) startInactivityTimer();
+    
+    // 8. Update mode switcher in header
+    const headerCourseBtn = $('#btnModeCourseHeader');
+    const headerSubjectBtn = $('#btnModeSubjectHeader');
+    if (headerCourseBtn && headerSubjectBtn) {
+        headerCourseBtn.classList.toggle('active', appMode === 'course');
+        headerSubjectBtn.classList.toggle('active', appMode === 'subject');
+    }
 });
 
 // ---- ( Service Worker ) ----
@@ -1836,7 +2827,7 @@ if ('serviceWorker' in navigator) {
 }
 
 /* ==========================
-🔧 Section: 13 Utility Functions
+🔧 Section: 14 Utility Functions
 ========================== */
 
 // টগল পাসওয়ার্ড ভিজিবিলিটি
@@ -1854,7 +2845,7 @@ window.togglePass = (id) => {
 
 // PWA ইনস্টল স্টেট চেক
 function checkInstallState() {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const isStandalone = window.matchMedia('(display-mode: standalone').matches || window.navigator.standalone === true;
 
     if (isStandalone) {
         const homeCard = document.getElementById('homeInstallCard');

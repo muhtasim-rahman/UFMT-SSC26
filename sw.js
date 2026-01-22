@@ -1,5 +1,5 @@
-// Service Worker for UFMT-SSC26 — robust caching and relative paths
-const CACHE_NAME = 'ufmt-ssc26-v3';
+// Service Worker for UFMT-SSC26 V19 — robust caching and relative paths
+const CACHE_NAME = 'ufmt-ssc26-v4';
 const BASE = '/UFMT-SSC26/'; // align with manifest scope and where sw.js lives
 const urlsToCache = [
   BASE,
