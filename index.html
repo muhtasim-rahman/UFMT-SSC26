@@ -14,7 +14,7 @@
   <meta name="author" content="Muhtasim Rahman">
   <link rel="canonical" href="https://muhtasim-rahman.github.io/UFMT-SSC26/">
 
-  <!-- 🌐 OPEN GRAPH (Facebook / WhatsApp / Messenger) -->
+  <!-- 🌐 OPEN GRAPH -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://muhtasim-rahman.github.io/UFMT-SSC26/">
   <meta property="og:title" content="Udvash FMT Tracker (SSC-26)">
@@ -44,6 +44,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- 📚 MARKDOWN SUPPORT -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
 
   <!-- 🖌️ STYLES -->
   <link rel="stylesheet" href="style.css">
@@ -150,12 +153,24 @@
         <div class="header-left">
           <img src="./images/UFMT-narrow.jpg" class="logo-icon" alt="Logo">
           <div class="page-info">
+            <!-- Mode Badge added here -->
+            <div class="mode-badge" id="headerModeBadge">
+              <span id="headerModeText">কোর্স মেরিট</span>
+            </div>
             <h2 id="viewTitle">ড্যাশবোর্ড</h2>
-            <small id="modeTitle" style="font-size: 12px; color: var(--text-muted); display: block; margin-top: -3px;"></small>
             <p id="dateSub"></p>
           </div>
         </div>
         <div class="header-tools">
+          <!-- Mode Toggle in Header (Desktop) -->
+          <div class="header-mode-switcher">
+            <button class="mode-btn-header active" id="btnModeCourseHeader" data-mode="course">
+              <i class="fas fa-layer-group"></i>
+            </button>
+            <button class="mode-btn-header" id="btnModeSubjectHeader" data-mode="subject">
+              <i class="fas fa-book"></i>
+            </button>
+          </div>
           <button id="refreshDataBtn" class="icon-btn-round" title="Refresh Data"><i class="fas fa-sync-alt"></i></button>
           <button id="themeToggle" class="theme-switch">
             <span class="sun"><i class="fas fa-sun"></i></span>
@@ -174,8 +189,8 @@
         <button id="closeOfflineAlert" class="banner-close"><i class="fas fa-times"></i></button>
       </div>
 
-      <!-- 🎛️ MODE SWITCHER -->
-      <div id="modeSwitcher" class="mode-switcher">
+      <!-- 🎛️ MODE SWITCHER (Mobile Only) -->
+      <div id="modeSwitcher" class="mode-switcher mobile-only">
         <div class="mode-toggle">
           <button class="mode-btn active" id="btnModeCourse" data-mode="course">
             <i class="fas fa-layer-group"></i> কোর্স মেরিট
@@ -237,18 +252,7 @@
               <label>বিষয়</label>
               <select id="subjectFilter" class="subject-select">
                 <option value="">সব বিষয়</option>
-                <option value="গণিত">গণিত</option>
-                <option value="উচ্চতর গণিত">উচ্চতর গণিত</option>
-                <option value="ইংরেজি ১ম পত্র">ইংরেজি ১ম পত্র</option>
-                <option value="ইংরেজি ২য় পত্র">ইংরেজি ২য় পত্র</option>
-                <option value="বাংলা ১ম পত্র">বাংলা ১ম পত্র</option>
-                <option value="বাংলা ২য় পত্র">বাংলা ২য় পত্র</option>
-                <option value="পদার্থবিজ্ঞান">পদার্থবিজ্ঞান</option>
-                <option value="রসায়ন">রসায়ন</option>
-                <option value="জীববিজ্ঞান">জীববিজ্ঞান</option>
-                <option value="বাংলাদেশ ও বিশ্বপরিচয়">বাংলাদেশ ও বিশ্বপরিচয়</option>
-                <option value="ধর্ম ও নৈতিক শিক্ষা">ধর্ম ও নৈতিক শিক্ষা</option>
-                <option value="তথ্য ও যোগাযোগ প্রযুক্তি">তথ্য ও যোগাযোগ প্রযুক্তি</option>
+                <!-- Options will be populated dynamically -->
               </select>
             </div>
 
@@ -479,7 +483,13 @@
               <div class="table-holder">
                 <table id="mainTable" class="custom-table">
                   <thead>
-                    <tr><th>ক্রমিক</th><th>তারিখ ও সময়</th><th>ব্রাঞ্চ</th><th>সেন্ট্রাল</th></tr>
+                    <tr>
+                      <th>ক্রিয়া</th>
+                      <th>ক্রমিক</th>
+                      <th>তারিখ ও সময়</th>
+                      <th>ব্রাঞ্চ</th>
+                      <th>সেন্ট্রাল</th>
+                    </tr>
                   </thead>
                   <tbody id="tableRows">
                     <!-- JavaScript দ্বারা পপুলেট হবে -->
@@ -529,6 +539,7 @@
                 <table id="subjectTable" class="custom-table">
                   <thead>
                     <tr>
+                      <th>ক্রিয়া</th>
                       <th>নং</th>
                       <th>বিষয় ও সিলেবাস</th>
                       <th>তারিখ</th>
@@ -593,7 +604,7 @@
                       আপনার ব্রাঞ্চ পজিশন এর ধারাবাহিক পরিবর্তন
                     </p>
                   </div>
-                  <button class="chart-download-btn" onclick="downloadChart('branchChart')" title="চার্ট ডাউনলোড" style="position: absolute; top: 15px; right: 15px; width: 32px; height: 32px; border-radius: 8px; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; z-index: 10;">
+                  <button class="chart-download-btn" onclick="downloadChart('branchChart')" title="চার্ট ডাউনলোড">
                     <i class="fas fa-download"></i>
                   </button>
                 </div>
@@ -610,7 +621,7 @@
                       আপনার সেন্ট্রাল পজিশন এর ধারাবাহিক পরিবর্তন
                     </p>
                   </div>
-                  <button class="chart-download-btn" onclick="downloadChart('centralChart')" title="চার্ট ডাউনলোড" style="position: absolute; top: 15px; right: 15px; width: 32px; height: 32px; border-radius: 8px; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; z-index: 10;">
+                  <button class="chart-download-btn" onclick="downloadChart('centralChart')" title="চার্ট ডাউনলোড">
                     <i class="fas fa-download"></i>
                   </button>
                 </div>
@@ -657,7 +668,7 @@
               </div>
               <div class="sum-box gold">
                 <span>সেরা ব্রাঞ্চ</span>
-                <div id="sumSubjectBestBranch" style="margin-top: 8px;">
+                <div id="sumSubjectBestBranch" class="best-rank-container">
                   <div class="best-rank-subject">-</div>
                   <div class="best-rank-details">
                     <span class="best-rank-position">-</span>
@@ -667,7 +678,7 @@
               </div>
               <div class="sum-box accent">
                 <span>সেরা কেন্দ্রীয়</span>
-                <div id="sumSubjectBestCentral" style="margin-top: 8px;">
+                <div id="sumSubjectBestCentral" class="best-rank-container">
                   <div class="best-rank-subject">-</div>
                   <div class="best-rank-details">
                     <span class="best-rank-position">-</span>
@@ -688,7 +699,7 @@
                     <h4 class="chart-title">বিষয়ভিত্তিক নম্বর</h4>
                     <p class="chart-caption">বিষয় অনুযায়ী প্রাপ্ত নম্বরের গ্রাফ</p>
                   </div>
-                  <button class="chart-download-btn" onclick="downloadChart('subjectMarksChart')" title="চার্ট ডাউনলোড" style="position: absolute; top: 15px; right: 15px; width: 32px; height: 32px; border-radius: 8px; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; z-index: 10;">
+                  <button class="chart-download-btn" onclick="downloadChart('subjectMarksChart')" title="চার্ট ডাউনলোড">
                     <i class="fas fa-download"></i>
                   </button>
                 </div>
@@ -703,7 +714,7 @@
                     <h4 class="chart-title">ব্রাঞ্চ মেরিট</h4>
                     <p class="chart-caption">বিষয় অনুযায়ী ব্রাঞ্চ মেরিট</p>
                   </div>
-                  <button class="chart-download-btn" onclick="downloadChart('subjectBranchChart')" title="চার্ট ডাউনলোড" style="position: absolute; top: 15px; right: 15px; width: 32px; height: 32px; border-radius: 8px; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; z-index: 10;">
+                  <button class="chart-download-btn" onclick="downloadChart('subjectBranchChart')" title="চার্ট ডাউনলোড">
                     <i class="fas fa-download"></i>
                   </button>
                 </div>
@@ -718,7 +729,7 @@
                     <h4 class="chart-title">কেন্দ্রীয় মেরিট</h4>
                     <p class="chart-caption">বিষয় অনুযায়ী কেন্দ্রীয় মেরিট</p>
                   </div>
-                  <button class="chart-download-btn" onclick="downloadChart('subjectCentralChart')" title="চার্ট ডাউনলোড" style="position: absolute; top: 15px; right: 15px; width: 32px; height: 32px; border-radius: 8px; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; z-index: 10;">
+                  <button class="chart-download-btn" onclick="downloadChart('subjectCentralChart')" title="চার্ট ডাউনলোড">
                     <i class="fas fa-download"></i>
                   </button>
                 </div>
@@ -830,7 +841,6 @@
             <div class="input-container" style="margin-bottom: 15px;">
               <label>ডাটা টাইপ</label>
               <select id="exportDataType" class="form-control">
-                <option value="all">সকল ডাটা</option>
                 <option value="subject">বিষয়ভিত্তিক ডাটা</option>
                 <option value="course">কোর্স মেরিট ডাটা</option>
               </select>
@@ -893,11 +903,11 @@
               </div>
               <div class="info-item">
                 <span class="info-label">ওয়েব এ্যাপ ভার্সন:</span>
-                <span class="info-value">V19.0</span>
+                <span class="info-value">V19.3</span>
               </div>
               <div class="info-item">
                 <span class="info-label">ডেভেলপার:</span>
-                <a href="https://mdturzo.odoo.com" target="_blank" class="info-link">Muhtasim Rahman(Turzo)</a>
+                <a href="https://mdturzo.odoo.com" target="_blank" class="info-link">Muhtasim Rahman (Turzo)</a>
               </div>
               <div class="info-item">
                 <span class="info-label">GitHub রিপোজিটরি:</span>
@@ -940,12 +950,40 @@
   <div id="modalContent" class="reset-popup"></div>
 </div>
 
+<!-- Documentation Modal -->
+<div id="documentationModal" class="modal-overlay hidden">
+  <div class="modal-content markdown-modal">
+    <div class="modal-header">
+      <h3><i class="fas fa-book"></i> ডকুমেন্টেশন</h3>
+      <button class="modal-close" onclick="closeDocumentation()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body markdown-body" id="documentationContent">
+      <!-- Markdown content will be loaded here -->
+    </div>
+  </div>
+</div>
+
+<!-- Row Action Modal -->
+<div id="rowActionModal" class="modal-overlay hidden">
+  <div class="modal-content action-modal">
+    <div id="actionModalContent"></div>
+  </div>
+</div>
+
+<!-- Edit Data Modal -->
+<div id="editModal" class="modal-overlay hidden">
+  <div class="modal-content edit-modal">
+    <div id="editModalContent"></div>
+  </div>
+</div>
+
 <div id="statusToast" class="toast"></div>
 
 <!-- 🔌 SECTION: SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/5.0.2/marked.min.js"></script>
 <script src="app.js"></script>
 <script src="sw.js"></script>
 </body>

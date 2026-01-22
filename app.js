@@ -1,5 +1,5 @@
 /* ==========================================================================
-   FMT TRACKER PRO - ULTIMATE VERSION (V19.0)
+   FMT TRACKER PRO - ULTIMATE VERSION (V19.3)
    ========================================================================== */
 
 /* ==========================
@@ -7,7 +7,7 @@
 ========================== */
 
 // ---- ( Configuration ) ----
-const RAW_URL = "https://script.google.com/macros/s/AKfycbxR-RPo1ubaPVubGZ5ZEN_cuTucD4MJCLBCcBzqFVARLryI72O1tilYrvsA_0LBrr3E/exec";
+const RAW_URL = "https://script.google.com/macros/s/AKfycbymcut_9IPTR4RacT6We1eTWmveM58kyhICxrHl109tXFfbdbFOlyHo8ji5ZB3klWA/exec";
 
 // ---- ( DOM Helpers ) ----
 const $ = s => document.querySelector(s);
@@ -70,14 +70,14 @@ function resetInactivityTimer() {
     inactivityTimer = setTimeout(() => {
         if (!$('#pinGate').classList.contains('hidden')) return;
         const now = Date.now();
-        if (now - lastActivity > 120000) { // 2 minutes
+        if (now - lastActivity > 60000) { // 1 minute (60000ms)
             showToast("নিষ্ক্রিয় থাকার কারণে পুনরায় লগইন প্রয়োজন", "error");
             $('#pinGate').classList.remove('hidden');
             $('#app').classList.add('hidden');
             $('#pinInput').value = '';
             renderPinDots('');
         }
-    }, 120000);
+    }, 60000); // 1 minute
 }
 
 function setupAutoRefresh() {
@@ -173,7 +173,7 @@ let subjectPCurrentData = [];
 let subjectPDisplayedCount = 0;
 
 /* ==========================
-🔐 Section: 03 Security System (No Change)
+🔐 Section: 03 Security System
 ========================== */
 
 // ---- ( UI Render Logic ) ----
@@ -335,7 +335,7 @@ async function fetchAllData() {
                     branch: Number(entry.branch),
                     central: Number(entry.central)
                 }))
-                .sort((a, b) => a.serial - b.serial);
+                .sort((a, b) => b.serial - a.serial); // Reverse order for course table
              localStorage.setItem(LS_DATA_CACHE, JSON.stringify(allEntries));
         }
 
@@ -395,6 +395,7 @@ function processSubjectData() {
         subjectResults = [...subjectData];
     }
     populateSubjectDropdown();
+    populateSubjectFilter();
 }
 
 function populateSubjectDropdown() {
@@ -402,17 +403,6 @@ function populateSubjectDropdown() {
     if (!select) return;
     
     select.innerHTML = '<option value="">বিষয় নির্বাচন করুন...</option>';
-    
-    // বিষয় ফিল্টারিং উন্নত
-    const subjectCategories = {
-        'গণিত': ['গণিত', 'উচ্চতর গণিত'],
-        'ইংরেজি': ['ইংরেজি ১ম পত্র', 'ইংরেজি ২য় পত্র', 'ইংরেজি'],
-        'বাংলা': ['বাংলা ১ম পত্র', 'বাংলা ২য় পত্র', 'বাংলা'],
-        'পদার্থবিজ্ঞান': ['পদার্থবিজ্ঞান'],
-        'রসায়ন': ['রসায়ন'],
-        'জীববিজ্ঞান': ['জীববিজ্ঞান'],
-        'উচ্চতর গণিত': ['উচ্চতর গণিত']
-    };
     
     subjectData.forEach(item => {
         const option = document.createElement('option');
@@ -427,14 +417,24 @@ function populateSubjectDropdown() {
         option.dataset.obtained = item.obtained_marks || '';
         option.dataset.branch = item.branch_merit || '';
         option.dataset.central = item.central_merit || '';
-        
-        // বিষয় ক্যাটাগরি অনুযায়ী গ্রুপিং (ভবিষ্যতের জন্য)
-        option.dataset.category = Object.keys(subjectCategories).find(cat => 
-            subjectCategories[cat].some(sub => item.subject.includes(sub))
-        ) || 'অন্যান্য';
-        
         select.appendChild(option);
     });
+}
+
+function populateSubjectFilter() {
+    const filter = $('#subjectFilter');
+    if (!filter) return;
+    
+    // Get unique subjects properly
+    const subjectsMap = {};
+    subjectData.forEach(item => {
+        subjectsMap[item.subject] = true;
+    });
+    
+    const subjects = Object.keys(subjectsMap).sort();
+    
+    filter.innerHTML = '<option value="">সব বিষয়</option>' +
+        subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
 }
 
 function updateSubjectYearDropdown() {
@@ -508,7 +508,7 @@ function calculateSubjectGPA(obtained, total) {
 }
 
 /* ==========================
-📝 Section: 05 Data Submission
+📝 Section: 05 Data Submission & Edit
 ========================== */
 
 // ---- ( Course Entry ) ----
@@ -637,6 +637,178 @@ async function submitSubjectEntry() {
     }
 }
 
+// ---- ( Edit Course Entry ) ----
+async function editCourseEntry(serial) {
+    const entry = allEntries.find(e => e.serial === parseInt(serial));
+    if (!entry) return;
+    
+    const html = `
+        <div class="edit-modal-content">
+            <div class="edit-modal-header">
+                <h3><i class="fas fa-edit"></i> এন্ট্রি সম্পাদনা করুন</h3>
+                <p class="edit-subtitle">সিরিয়াল: ${toBanglaNumber(serial)}</p>
+            </div>
+            
+            <div class="edit-form">
+                <div class="input-container">
+                    <label>ব্রাঞ্চ মেরিট</label>
+                    <input type="number" id="editBranch" value="${entry.branch}" placeholder="ব্রাঞ্চ মেরিট">
+                </div>
+                <div class="input-container">
+                    <label>সেন্ট্রাল মেরিট</label>
+                    <input type="number" id="editCentral" value="${entry.central}" placeholder="সেন্ট্রাল মেরিট">
+                </div>
+                <div class="input-container">
+                    <label>তারিখ</label>
+                    <input type="date" id="editDate" value="${entry.date}">
+                </div>
+                <div class="input-container">
+                    <label>সময়</label>
+                    <input type="time" id="editTime" value="${entry.time}">
+                </div>
+            </div>
+            
+            <div class="edit-modal-footer">
+                <button class="btn btn-cancel" onclick="closeEditModal()">বাতিল</button>
+                <button class="btn btn-primary" onclick="saveCourseEdit(${serial})">সংরক্ষণ করুন</button>
+            </div>
+        </div>
+    `;
+    
+    $('#editModalContent').innerHTML = html;
+    $('#editModal').classList.remove('hidden');
+}
+
+async function saveCourseEdit(serial) {
+    const branch = $('#editBranch').value;
+    const central = $('#editCentral').value;
+    const date = $('#editDate').value;
+    const time = $('#editTime').value;
+    
+    if (!branch || !central || !date || !time) {
+        showToast("সকল তথ্য পূরণ করুন", "error");
+        return;
+    }
+    
+    const payload = {
+        type: 'edit_course',
+        serial: serial,
+        branch: parseFloat(branch),
+        central: parseFloat(central),
+        date: date,
+        time: time
+    };
+    
+    try {
+        const response = await fetch(getApiUrl(), {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            closeEditModal();
+            await fetchAllData();
+            showToast("এন্ট্রি সফলভাবে আপডেট হয়েছে!", "success");
+        } else {
+            showToast("আপডেট ব্যর্থ হয়েছে", "error");
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast("নেটওয়ার্ক ত্রুটি", "error");
+    }
+}
+
+// ---- ( Delete Course Entry ) ----
+async function deleteCourseEntry(serial) {
+    openModal(`
+        <div style="padding:25px; text-align:center;"> 
+            <i class="fas fa-trash-alt" style="font-size:30px; color:#ef4444; margin-bottom:15px;"></i> 
+            <h3 style="margin:0 0 10px;">এন্ট্রি মুছুন?</h3> 
+            <p style="font-size:13px; color:#64748b; margin-bottom:15px;">আপনি কি সিরিয়াল ${toBanglaNumber(serial)} এর এন্ট্রিটি মুছে ফেলতে চান?</p>
+            <div class="delete-summary" style="background:#fef2f2; padding:10px; border-radius:8px; margin-bottom:15px; font-size:12px;">
+                <p><strong>সারাংশ:</strong></p>
+                <p>• সিরিয়াল: ${toBanglaNumber(serial)} মুছে যাবে</p>
+                <p>• পরবর্তী সিরিয়ালগুলো পুনর্বিন্যাস করা হবে</p>
+            </div>
+            <p style="font-size:11px; color:#9ca3af; margin-bottom:20px;">এই কাজটি পূর্বাবস্থায় ফিরিয়ে আনা যাবে না</p>
+            <div class="reset-footer"> 
+                <button class="btn-reset-cancel" onclick="closeModal()">না</button> 
+                <button class="btn-reset-confirm" style="background:#ef4444;" onclick="confirmDeleteCourse(${serial})">হ্যাঁ, মুছুন</button> 
+            </div>
+        </div>`);
+}
+
+async function confirmDeleteCourse(serial) {
+    try {
+        const response = await fetch(getApiUrl(), {
+            method: 'POST',
+            body: JSON.stringify({
+                type: 'delete_course',
+                serial: serial
+            })
+        });
+        
+        if (response.ok) {
+            closeModal();
+            await fetchAllData();
+            showToast("এন্ট্রি সফলভাবে মুছে ফেলা হয়েছে", "success");
+        } else {
+            showToast("মুছে ফেলতে ব্যর্থ হয়েছে", "error");
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast("নেটওয়ার্ক ত্রুটি", "error");
+    }
+}
+
+// ---- ( Clear Subject Data ) ----
+async function clearSubjectData(serial) {
+    openModal(`
+        <div style="padding:25px; text-align:center;"> 
+            <i class="fas fa-eraser" style="font-size:30px; color:#f59e0b; margin-bottom:15px;"></i> 
+            <h3 style="margin:0 0 10px;">বিষয়ের ডাটা পরিষ্কার করুন?</h3> 
+            <p style="font-size:13px; color:#64748b; margin-bottom:15px;">আপনি কি এই বিষয়ের নম্বর এবং মেরিট ডাটা পরিষ্কার করতে চান?</p>
+            <div class="delete-summary" style="background:#fffbeb; padding:10px; border-radius:8px; margin-bottom:15px; font-size:12px;">
+                <p><strong>যা পরিষ্কার হবে:</strong></p>
+                <p>• প্রাপ্ত নম্বর</p>
+                <p>• ব্রাঞ্চ মেরিট</p>
+                <p>• কেন্দ্রীয় মেরিট</p>
+                <p style="color:#059669; margin-top:5px;"><i class="fas fa-info-circle"></i> বিষয়টি মুছে যাবে না, শুধু ডাটা পরিষ্কার হবে</p>
+            </div>
+            <div class="reset-footer"> 
+                <button class="btn-reset-cancel" onclick="closeModal()">না</button> 
+                <button class="btn-reset-confirm" style="background:#f59e0b;" onclick="confirmClearSubject(${serial})">হ্যাঁ, পরিষ্কার করুন</button> 
+            </div>
+        </div>`);
+}
+
+async function confirmClearSubject(serial) {
+    try {
+        const response = await fetch(getApiUrl(), {
+            method: 'POST',
+            body: JSON.stringify({
+                type: 'clear_subject',
+                serial: serial
+            })
+        });
+        
+        if (response.ok) {
+            closeModal();
+            await fetchAllData();
+            showToast("বিষয়ের ডাটা পরিষ্কার করা হয়েছে", "success");
+        } else {
+            showToast("পরিষ্কার করতে ব্যর্থ হয়েছে", "error");
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast("নেটওয়ার্ক ত্রুটি", "error");
+    }
+}
+
+function closeEditModal() {
+    $('#editModal').classList.add('hidden');
+}
+
 /* ==========================
 🔄 Section: 06 Mode Management
 ========================== */
@@ -669,11 +841,23 @@ function switchMode(mode) {
 
 // ৩. UI এলিমেন্টগুলো হাইড/শো করা
 function updateModeUI(mode) {
+    // Update mode badge
+    const modeBadge = $('#headerModeBadge');
+    const modeText = $('#headerModeText');
+    if (modeBadge && modeText) {
+        modeText.textContent = mode === 'course' ? 'কোর্স মেরিট' : 'বিষয়ভিত্তিক';
+    }
+    
+    // Update header buttons
     const courseBtn = $('#btnModeCourse');
     const subjectBtn = $('#btnModeSubject');
+    const courseBtnHeader = $('#btnModeCourseHeader');
+    const subjectBtnHeader = $('#btnModeSubjectHeader');
     
     if (courseBtn) courseBtn.classList.toggle('active', mode === 'course');
     if (subjectBtn) subjectBtn.classList.toggle('active', mode === 'subject');
+    if (courseBtnHeader) courseBtnHeader.classList.toggle('active', mode === 'course');
+    if (subjectBtnHeader) subjectBtnHeader.classList.toggle('active', mode === 'subject');
     
     // হেডারে মোড টাইটেল আপডেট
     const modeTitle = $('#modeTitle');
@@ -683,11 +867,13 @@ function updateModeUI(mode) {
     
     // কোর্স এবং সাবজেক্ট এলিমেন্টগুলো টগল
     $$('.course-mode').forEach(el => {
-        if (el.id !== 'modeSwitcher') el.classList.toggle('hidden', mode !== 'course');
+        if (el.id !== 'modeSwitcher' && !el.classList.contains('mobile-only')) 
+            el.classList.toggle('hidden', mode !== 'course');
     });
     
     $$('.subject-mode').forEach(el => {
-        el.classList.toggle('hidden', mode !== 'subject');
+        if (!el.classList.contains('mobile-only'))
+            el.classList.toggle('hidden', mode !== 'subject');
     });
     
     // ফিল্টার বার শো/হাইড (শুধু টেবিল এবং চার্ট ট্যাবে)
@@ -697,10 +883,9 @@ function updateModeUI(mode) {
     if ($('#filterBar')) $('#filterBar').classList.toggle('hidden', !showFilter || mode !== 'course');
     if ($('#subjectFilterBar')) $('#subjectFilterBar').classList.toggle('hidden', !showFilter || mode !== 'subject');
     
-    // মোড সুইচার শো/হাইড (শুধু এন্ট্রি, টেবিল, চার্ট ট্যাবে)
+    // মোড সুইচার শো/হাইড (শুধু মোবাইলে)
     if ($('#modeSwitcher')) {
-        const shouldShowModeSwitcher = ['tabInput', 'tabTable', 'tabGraph'].includes(activeTab);
-        $('#modeSwitcher').classList.toggle('hidden', !shouldShowModeSwitcher);
+        $('#modeSwitcher').classList.toggle('hidden', window.innerWidth > 768);
     }
 }
 
@@ -776,7 +961,7 @@ function updateSummary(data) {
 
 function updateCourseCharts(data) {
     if (!window.Chart) return;
-    const chartData = [...data]; 
+    const chartData = [...data].sort((a, b) => a.serial - b.serial); // Chart needs sorted data
     const labels = chartData.map(d => `R-${toBanglaNumber(d.serial)}`);
 
     const commonOptions = {
@@ -884,24 +1069,8 @@ function applySubjectFilters() {
     
     const subjectFilter = $('#subjectFilter').value;
     if (subjectFilter) {
-        // উন্নত বিষয় ফিল্টারিং
-        const filterMap = {
-            'গণিত': ['গণিত', 'উচ্চতর গণিত'],
-            'ইংরেজি': ['ইংরেজি ১ম পত্র', 'ইংরেজি ২য় পত্র', 'ইংরেজি'],
-            'বাংলা': ['বাংলা ১ম পত্র', 'বাংলা ২য় পত্র', 'বাংলা'],
-            'পদার্থবিজ্ঞান': ['পদার্থবিজ্ঞান'],
-            'রসায়ন': ['রসায়ন'],
-            'জীববিজ্ঞান': ['জীববিজ্ঞান'],
-            'উচ্চতর গণিত': ['উচ্চতর গণিত']
-        };
-        
-        if (filterMap[subjectFilter]) {
-            data = data.filter(d => 
-                filterMap[subjectFilter].some(sub => d.subject.includes(sub))
-            );
-        } else {
-            data = data.filter(d => d.subject.includes(subjectFilter));
-        }
+        // Exact subject match
+        data = data.filter(d => d.subject === subjectFilter);
     }
     
     const smartFilter = $('#smartFilter').value;
@@ -982,7 +1151,13 @@ function updateSubjectSummary(data) {
             </div>
         `;
     } else {
-        bestBranchElement.textContent = '-';
+        bestBranchElement.innerHTML = `
+            <div class="best-rank-subject">-</div>
+            <div class="best-rank-details">
+                <span class="best-rank-position">-</span>
+                <span class="best-rank-marks">-/-</span>
+            </div>
+        `;
     }
     
     if (bestCentralSubject) {
@@ -994,7 +1169,13 @@ function updateSubjectSummary(data) {
             </div>
         `;
     } else {
-        bestCentralElement.textContent = '-';
+        bestCentralElement.innerHTML = `
+            <div class="best-rank-subject">-</div>
+            <div class="best-rank-details">
+                <span class="best-rank-position">-</span>
+                <span class="best-rank-marks">-/-</span>
+            </div>
+        `;
     }
     
     // উন্নত GPA তথ্য
@@ -1276,7 +1457,7 @@ function updateSubjectCentralChart(data) {
 
 // ---- ( Course Table ) ----
 function updateTable(data) {
-    pCurrentData = [...data].sort((a, b) => a.serial - b.serial); // serial অনুযায়ী সাজানো
+    pCurrentData = [...data]; // Already reversed in fetchAllData()
     
     const endMsg = $("#endMessage");
     const infLoader = $("#infiniteLoader");
@@ -1301,7 +1482,7 @@ function updateTable(data) {
         if (tbody) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="4" class="no-data-cell">
+                    <td colspan="5" class="no-data-cell">
                         <div class="no-data-icon">
                             <i class="fas fa-database"></i>
                         </div>
@@ -1360,12 +1541,19 @@ function renderRows(data, append) {
     if (!tbody) return;
     
     if (!data.length && !append) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
         return;
     }
     
     const html = data.map(d => `
         <tr class="fade-in table-row-hover">
+            <td class="action-cell">
+                <div class="dropdown">
+                    <button class="dropdown-toggle" onclick="showRowActions('course', ${d.serial})">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+            </td>
             <td><span class="sn-badge">${toBanglaNumber(d.serial)}</span></td>
             <td>
                 <div class="table-date-cell">
@@ -1385,6 +1573,42 @@ function renderRows(data, append) {
         tbody.innerHTML = html;
     }
 }
+
+// ---- ( Row Actions ) ----
+function showRowActions(type, serial) {
+    let html = '';
+    if (type === 'course') {
+        html = `
+            <div class="action-menu">
+                <button class="action-btn" onclick="editCourseEntry(${serial})">
+                    <i class="fas fa-edit"></i> সম্পাদনা
+                </button>
+                <button class="action-btn danger" onclick="deleteCourseEntry(${serial})">
+                    <i class="fas fa-trash"></i> মুছুন
+                </button>
+            </div>
+        `;
+    } else {
+        html = `
+            <div class="action-menu">
+                <button class="action-btn" onclick="clearSubjectData(${serial})">
+                    <i class="fas fa-eraser"></i> ডাটা পরিষ্কার
+                </button>
+            </div>
+        `;
+    }
+    
+    $('#actionModalContent').innerHTML = html;
+    $('#rowActionModal').classList.remove('hidden');
+}
+
+// Close action modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = $('#rowActionModal');
+    if (modal && !modal.contains(event.target) && !event.target.closest('.dropdown-toggle')) {
+        modal.classList.add('hidden');
+    }
+});
 
 function renderPaginationControls() {
     const container = $("#paginationControls");
@@ -1435,8 +1659,8 @@ window.handleRowsChange = (val) => {
 
 // ---- ( Subject Table ) ----
 function updateSubjectTable(data) {
-    // সাবজেক্ট টেবিলের জন্য ধারাবাহিক সিরিয়াল নম্বর (ফিল্টারিংয়ের সাথে সামঞ্জস্যপূর্ণ)
-    subjectPCurrentData = [...data].sort((a, b) => a.serial - b.serial); // serial অনুযায়ী সাজানো
+    // Subject table shows in original order (not reversed)
+    subjectPCurrentData = [...data].sort((a, b) => a.serial - b.serial);
     
     const endMsg = $("#subjectEndMessage");
     const loader = $("#subjectInfiniteLoader");
@@ -1451,7 +1675,7 @@ function updateSubjectTable(data) {
         if (tbody) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="no-data-cell">
+                    <td colspan="7" class="no-data-cell">
                         <div class="no-data-icon">
                             <i class="fas fa-book"></i>
                         </div>
@@ -1521,18 +1745,25 @@ function renderSubjectRows(data, append) {
     if (!tbody) return;
     
     if (!data.length && !append) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">কোন রিপোর্ট পাওয়া যায়নি</td></tr>';
         return;
     }
     
     const html = data.map((d, index) => {
-        // ধারাবাহিক সিরিয়াল নম্বর (ফিল্টার করা ডাটার জন্য)
-        const serial = subjectPDisplayedCount - data.length + index + 1;
+        // Use sheet serial number directly
+        const serial = d.serial;
         const percentage = d.obtained_marks !== null ? ((d.obtained_marks / d.total_marks) * 100).toFixed(1) : null;
         const gpa = d.obtained_marks !== null ? calculateSubjectGPA(d.obtained_marks, d.total_marks) : null;
         
         return `
         <tr class="fade-in table-row-hover">
+            <td class="action-cell">
+                <div class="dropdown">
+                    <button class="dropdown-toggle" onclick="showRowActions('subject', ${serial})">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+            </td>
             <td><span class="sn-badge">${toBanglaNumber(serial)}</span></td>
             <td class="subject-table-cell">
                 <div class="subject-name">${d.subject}</div>
@@ -1541,7 +1772,9 @@ function renderSubjectRows(data, append) {
             <td>${formatDate(d.date)}</td>
             <td>
                 <div class="marks-display">
-                    <b>${d.obtained_marks !== null ? toBanglaNumber(d.obtained_marks) : '-'}</b> / ${toBanglaNumber(d.total_marks)}
+                    <div class="marks-row">
+                        <b>${d.obtained_marks !== null ? toBanglaNumber(d.obtained_marks) : '-'}</b> / ${toBanglaNumber(d.total_marks)}
+                    </div>
                     ${percentage ? `<div class="percentage-gpa-row">
                         <span class="percentage-badge">${toBanglaNumber(percentage)}%</span>
                         <span class="dot-separator">•</span>
@@ -1605,7 +1838,7 @@ window.handleSubjectRowsChange = (val) => {
 };
 
 /* ==========================
-🔔 Section: 09 Notifications (Improved)
+🔔 Section: 09 Notifications
 ========================== */
 
 async function requestNotifPermission() {
@@ -1696,7 +1929,7 @@ function deleteReminder(i) {
 }
 
 /* ==========================
-🛠️ Section: 10 Modals & Reset (Improved Design)
+🛠️ Section: 10 Modals & Reset
 ========================== */
 
 function openModal(html) {
@@ -1705,137 +1938,70 @@ function openModal(html) {
     content.className = "reset-popup-premium"; 
     content.innerHTML = html;
     modal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
 }
 
 function closeModal() { 
     $('#standardModal').classList.add('hidden'); 
-    document.body.style.overflow = 'auto';
 }
 
 function showResetStep1() {
     openModal(`
-        <div class="reset-top-banner" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
-            <div class="reset-icon-anim" style="background: #f59e0b; color: white;">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <h3 style="color: #92400e; margin-top: 10px;">সতর্কবার্তা</h3>
-            <p style="color: #b45309; font-size: 13px; margin-top: 5px;">এই কাজটি পূর্বাবস্থায় ফিরিয়ে আনা যাবে না</p>
+        <div class="reset-top-banner">
+            <div class="reset-icon-anim"><i class="fas fa-trash-alt"></i></div>
+            <h3>সতর্কবার্তা</h3>
         </div>
         <div class="reset-body">
-            <div class="warning-card">
-                <div class="warning-icon">
-                    <i class="fas fa-database"></i>
-                </div>
-                <div class="warning-content">
-                    <h4>ডাটা সংরক্ষিত থাকবে</h4>
-                    <p>Google Sheets-এ সংরক্ষিত আপনার সকল ডাটা অক্ষত থাকবে।</p>
-                </div>
-            </div>
-            
-            <div class="warning-card" style="border-left-color: #ef4444;">
-                <div class="warning-icon" style="background: #fee2e2; color: #dc2626;">
-                    <i class="fas fa-cog"></i>
-                </div>
-                <div class="warning-content">
-                    <h4>সেটিংস রিসেট হবে</h4>
-                    <p>পিন, থিম, রিমাইন্ডারসহ সকল সেটিংস ডিফল্টে ফিরে যাবে।</p>
-                </div>
-            </div>
-            
+            <ul class="warning-points">
+                <li>অ্যাপের সকল সেটিংস ও পারমিশন স্থায়ীভাবে মুছে যাবে। (সীটে সেভ করা ডাটা মুছে যাবে না)</li>
+                <li>আপনার সিকিউরিটি পিন রিসেট হয়ে ডিফল্ট পিন সেট হয়ে যাবে।</li>
+            </ul>
             <div class="divider-line"></div>
-            
             <div class="input-reset-wrapper">
-                <label>নিশ্চিত করতে নিচের বক্সে "রিসেট" লিখুন</label>
-                <input type="text" id="confirmText" placeholder="রিসেট" autocomplete="off" style="text-align: center; font-size: 16px;">
-                <p class="hint-text">বাংলা অক্ষরে "রিসেট" লিখুন</p>
+                <label>নিশ্চিত করতে বড় হাতের অক্ষরে "RESET" লিখুন</label>
+                <input type="text" id="confirmText" placeholder="RESET" autocomplete="off">
             </div>
-            
             <div class="reset-footer">
-                <button class="btn-reset-cancel" onclick="closeModal()">
-                    <i class="fas fa-times"></i> বাতিল
-                </button>
-                <button class="btn-reset-confirm" onclick="showResetStep2()" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                    <i class="fas fa-arrow-right"></i> পরবর্তী
-                </button>
+                <button class="btn-reset-cancel" onclick="closeModal()">বাতিল</button>
+                <button class="btn-reset-confirm" onclick="showResetStep2()">পরবর্তী ধাপ</button>
             </div>
         </div>
     `);
 }
 
 function showResetStep2() {
-    if ($('#confirmText')?.value !== 'রিসেট') {
-        showToast("সঠিকভাবে 'রিসেট' লিখুন", "error");
-        return;
-    }
-    
+    if ($('#confirmText')?.value !== 'RESET') return showToast("সঠিকভাবে RESET শব্দটি লিখুন", "error");
     openModal(`
-        <div class="reset-top-banner" style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);">
-            <div class="reset-icon-anim" style="background: #4f46e5; color: white;">
-                <i class="fas fa-shield-alt"></i>
-            </div>
-            <h3 style="color: #3730a3; margin-top: 10px;">নিরাপত্তা যাচাই</h3>
-            <p style="color: #4f46e5; font-size: 13px; margin-top: 5px;">অভিমত ব্যক্ত করতে আপনার বর্তমান পিন দিন</p>
+        <div class="reset-top-banner">
+            <div class="reset-icon-anim" style="color:#6366f1; background:#eef2ff;"><i class="fas fa-shield-alt"></i></div>
+            <h3 style="color:#6366f1;">নিরাপত্তা যাচাই</h3>
         </div>
         <div class="reset-body">
-            <div class="security-notice">
-                <i class="fas fa-info-circle" style="color: #4f46e5;"></i>
-                <p>এই পদক্ষেপটি অপরিবর্তনীয়। অনুগ্রহ করে নিশ্চিত হোন যে আপনি সত্যিই সকল স্থানীয় সেটিংস মুছে ফেলতে চান।</p>
-            </div>
-            
+            <p style="text-align:center; font-size:13px; color:var(--text-muted); margin-bottom:20px;">
+                চূড়ান্ত অনুমোদনের জন্য আপনার বর্তমান পিন কোডটি দিন।
+            </p>
             <div class="input-reset-wrapper">
-                <label>বর্তমান ৬ ডিজিট পিন</label>
-                <input type="password" id="confirmPin" placeholder="••••••" maxlength="6" style="letter-spacing: 8px; font-size: 20px; text-align: center; font-weight: bold;">
-                <div class="pin-hint">
-                    <i class="fas fa-key"></i> আপনার সিকিউরিটি পিন
-                </div>
+                <input type="password" id="confirmPin" placeholder="••••••" maxlength="6" style="letter-spacing:5px; font-size:18px;">
             </div>
-            
             <div class="reset-footer">
-                <button class="btn-reset-cancel" onclick="showResetStep1()">
-                    <i class="fas fa-arrow-left"></i> পিছনে
-                </button>
-                <button class="btn-reset-confirm" onclick="finalReset()" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                    <i class="fas fa-trash"></i> মুছে ফেলুন
-                </button>
+                <button class="btn-reset-cancel" onclick="showResetStep1()">পিছনে</button>
+                <button class="btn-reset-confirm" style="background:#1f2937;" onclick="finalReset()">মুছে ফেলুন</button>
             </div>
         </div>
     `);
 }
 
 function finalReset() {
-    const pinInput = $('#confirmPin');
-    if (!pinInput) return;
-    
-    if (pinInput.value === getSavedPin()) {
-        // শুধু সেটিংস রিসেট করুন, ডাটা নয়
-        localStorage.removeItem(LS_PIN);
-        localStorage.removeItem(LS_THEME);
-        localStorage.removeItem(LS_NOTIFS);
-        localStorage.removeItem(LS_NOTIF_STATUS);
-        localStorage.removeItem(LS_PIN_AUTO);
-        localStorage.removeItem('appMode');
-        localStorage.removeItem(LS_SHOW_ONLY_MARKS);
-        localStorage.removeItem(LS_INCLUDE_FOURTH);
-        localStorage.removeItem(LS_FOURTH_SUBJECT);
-        localStorage.removeItem("pMode");
-        localStorage.removeItem("pRowsPerPage");
-        localStorage.removeItem("subjectPMode");
-        localStorage.removeItem("subjectPRowsPerPage");
-        
-        showToast("সিস্টেম রিসেট সম্পূর্ণ হয়েছে", "success");
-        setTimeout(() => {
-            location.reload();
-        }, 1500);
+    if ($('#confirmPin')?.value === getSavedPin()) {
+        localStorage.clear();
+        showToast("সিস্টেম রিসেট করা হয়েছে", "success");
+        setTimeout(() => location.reload(), 1500);
     } else {
-        showToast("ভুল পিন কোড! আবার চেষ্টা করুন", "error");
-        pinInput.value = '';
-        pinInput.focus();
+        showToast("ভুল পিন কোড!", "error");
     }
 }
 
 /* ==========================
-📤 Section: 11 Export Functions (Improved)
+📤 Section: 11 Export Functions
 ========================== */
 
 function initExportFunctions() {
@@ -1849,7 +2015,7 @@ function initExportFunctions() {
     if (exportPDFBtn) exportPDFBtn.addEventListener('click', exportToPDF);
     if (exportPrintBtn) exportPrintBtn.addEventListener('click', printData);
     if (openSheetBtn) openSheetBtn.addEventListener('click', () => {
-        window.open('https://docs.google.com/spreadsheets/d/1YOUR_SHEET_ID/edit', '_blank');
+        window.open('https://docs.google.com/spreadsheets/d/18p84g-tjabX_yQSNXyZRceu8swZI6NyuN-FC1Mc-JKw/edit?usp=sharing', '_blank');
     });
     
     // Fixed: Safe checks before setting . checked property
@@ -1892,7 +2058,7 @@ function initExportFunctions() {
     updateFourthSubjectContainer();
     
     const userManualBtn = $('#userManualBtn');
-    if (userManualBtn) userManualBtn.addEventListener('click', showUserManual);
+    if (userManualBtn) userManualBtn.addEventListener('click', showDocumentation);
 }
 
 function updateFourthSubjectContainer() {
@@ -1904,7 +2070,6 @@ function updateFourthSubjectContainer() {
 
 async function exportToExcel() {
     const dataType = $('#exportDataType').value;
-    let data, headers, filename;
     
     // বাংলা হেডার সহ CSV তৈরি
     const banglaHeaders = {
@@ -1912,9 +2077,9 @@ async function exportToExcel() {
         'subject': ['ক্রমিক', 'তারিখ', 'বিষয়', 'সিলেবাস', 'মোট নম্বর', 'প্রাপ্ত নম্বর', 'ব্রাঞ্চ মেরিট', 'কেন্দ্রীয় মেরিট', 'শতকরা', 'GPA']
     };
     
-    if (dataType === 'course' || dataType === 'all') {
-        data = allEntries || [];
-        headers = banglaHeaders.course;
+    if (dataType === 'course') {
+        const data = allEntries || [];
+        const headers = banglaHeaders.course;
         const rows = data.map(d => [
             d.serial,
             formatDate(d.date),
@@ -1923,15 +2088,13 @@ async function exportToExcel() {
             d.central
         ]);
         
-        if (dataType === 'course') {
-            exportCSV(headers, rows, 'কোর্স_মেরিট_ডাটা.csv');
-            return;
-        }
+        exportCSV(headers, rows, 'কোর্স_মেরিট_ডাটা.csv');
+        return;
     }
     
-    if (dataType === 'subject' || dataType === 'all') {
-        data = subjectData || [];
-        headers = banglaHeaders.subject;
+    if (dataType === 'subject') {
+        const data = subjectData || [];
+        const headers = banglaHeaders.subject;
         const rows = data.map(d => {
             const percentage = d.obtained_marks ? ((d.obtained_marks / d.total_marks) * 100).toFixed(1) : '';
             const gpa = d.obtained_marks ? calculateSubjectGPA(d.obtained_marks, d.total_marks) : '';
@@ -1950,42 +2113,48 @@ async function exportToExcel() {
             ];
         });
         
-        if (dataType === 'subject') {
-            exportCSV(headers, rows, 'বিষয়ভিত্তিক_ডাটা.csv');
-            return;
-        }
+        exportCSV(headers, rows, 'বিষয়ভিত্তিক_ডাটা.csv');
+        return;
     }
     
     if (dataType === 'all') {
-        showToast('দুই ধরনের ডাটাই প্রস্তুত করা হচ্ছে...');
-        // সব ডাটা একসাথে (কোর্স প্রথম, তারপর সাবজেক্ট)
-        const allHeaders = [...banglaHeaders.course, ...banglaHeaders.subject];
-        const courseRows = allEntries.map(d => [
-            d.serial, formatDate(d.date), format12hr(d.time), d.branch, d.central,
-            '', '', '', '', '', '' // সাবজেক্ট কলামগুলির জন্য খালি
+        // Export course data
+        const courseData = allEntries || [];
+        const courseHeaders = banglaHeaders.course;
+        const courseRows = courseData.map(d => [
+            d.serial,
+            formatDate(d.date),
+            format12hr(d.time),
+            d.branch,
+            d.central
         ]);
         
-        const subjectRows = subjectData.map(d => {
-            const percentage = d.obtained_marks ? ((d.obtained_marks / d.total_marks) * 100).toFixed(1) : '';
-            const gpa = d.obtained_marks ? calculateSubjectGPA(d.obtained_marks, d.total_marks) : '';
-            
-            return [
-                '', '', '', '', '', // কোর্স কলামগুলির জন্য খালি
-                d.serial,
-                formatDate(d.date),
-                d.subject,
-                d.syllabus,
-                d.total_marks,
-                d.obtained_marks || '',
-                d.branch_merit || '',
-                d.central_merit || '',
-                percentage,
-                gpa
-            ];
-        });
+        exportCSV(courseHeaders, courseRows, 'কোর্স_মেরিট_ডাটা.csv');
         
-        const allRows = [...courseRows, ...subjectRows];
-        exportCSV(allHeaders, allRows, 'সম্পূর্ণ_এফএমটি_ডাটা.csv');
+        // Export subject data separately
+        setTimeout(() => {
+            const subjectDataExport = subjectData || [];
+            const subjectHeaders = banglaHeaders.subject;
+            const subjectRows = subjectDataExport.map(d => {
+                const percentage = d.obtained_marks ? ((d.obtained_marks / d.total_marks) * 100).toFixed(1) : '';
+                const gpa = d.obtained_marks ? calculateSubjectGPA(d.obtained_marks, d.total_marks) : '';
+                
+                return [
+                    d.serial,
+                    formatDate(d.date),
+                    d.subject,
+                    d.syllabus,
+                    d.total_marks,
+                    d.obtained_marks || '',
+                    d.branch_merit || '',
+                    d.central_merit || '',
+                    percentage,
+                    gpa
+                ];
+            });
+            
+            exportCSV(subjectHeaders, subjectRows, 'বিষয়ভিত্তিক_ডাটা.csv');
+        }, 500);
     }
 }
 
@@ -2031,23 +2200,44 @@ async function exportToPDF() {
     const dataType = $('#exportDataType').value;
     const pageWidth = doc.internal.pageSize.getWidth();
     
-    // বাংলা ফন্ট সেট আপ (আপনার প্রয়োজন হলে বাংলা ফন্ট যোগ করুন)
-    doc.setFont("helvetica");
-    
     // হেডার
+    doc.setFillColor(99, 102, 241);
+    doc.rect(0, 0, pageWidth, 25, 'F');
+    
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
-    doc.setTextColor(99, 102, 241);
-    doc.text('Udvash FMT Tracker - Report', pageWidth / 2, 20, { align: 'center' });
+    doc.setFont("helvetica", "bold");
+    doc.text('Udvash FMT Tracker - Report', pageWidth / 2, 15, { align: 'center' });
     
     doc.setFontSize(10);
-    doc.setTextColor(100, 116, 139);
-    doc.text(`রিপোর্ট তারিখ: ${new Date().toLocaleDateString('bn-BD')}`, pageWidth / 2, 28, { align: 'center' });
-    doc.text(`ডাটা টাইপ: ${dataType === 'course' ? 'কোর্স মেরিট' : dataType === 'subject' ? 'বিষয়ভিত্তিক' : 'সব ডাটা'}`, pageWidth / 2, 34, { align: 'center' });
+    doc.text(`রিপোর্ট তারিখ: ${new Date().toLocaleDateString('bn-BD')}`, pageWidth / 2, 22, { align: 'center' });
     
-    let startY = 45;
+    // ফুটার লাইন
+    doc.setDrawColor(99, 102, 241);
+    doc.setLineWidth(0.5);
+    doc.line(10, 280, pageWidth - 10, 280);
+    
+    // ফুটার টেক্সট
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(8);
+    const footerText = `ডেভেলপার: Muhtasim Rahman (Turzo) | ওয়েবসাইট: https://mdturzo.odoo.com | Udvash FMT Tracker Pro V19.3`;
+    doc.text(footerText, pageWidth / 2, 285, { align: 'center' });
+    
+    let startY = 35;
+    
+    // রিপোর্ট ডাটা
+    doc.setFillColor(243, 244, 246);
+    doc.setTextColor(31, 41, 55);
+    doc.setFontSize(12);
     
     if (dataType === 'course') {
         const data = allEntries || [];
+        if (data.length === 0) {
+            doc.text('কোন ডাটা পাওয়া যায়নি', pageWidth / 2, startY, { align: 'center' });
+            doc.save('fmt_tracker_course.pdf');
+            return;
+        }
+        
         const headers = [['ক্রমিক', 'তারিখ', 'সময়', 'ব্রাঞ্চ', 'কেন্দ্রীয়']];
         const rows = data.map(d => [
             toBanglaNumber(d.serial),
@@ -2069,13 +2259,27 @@ async function exportToPDF() {
             },
             styles: { 
                 font: 'helvetica',
-                fontSize: 9,
-                cellPadding: 3
+                fontSize: 10,
+                cellPadding: 5,
+                halign: 'center'
             },
-            margin: { left: 10, right: 10 }
+            margin: { left: 10, right: 10 },
+            columnStyles: {
+                0: { cellWidth: 20 },
+                1: { cellWidth: 30 },
+                2: { cellWidth: 25 },
+                3: { cellWidth: 30 },
+                4: { cellWidth: 30 }
+            }
         });
     } else if (dataType === 'subject') {
         const data = subjectData || [];
+        if (data.length === 0) {
+            doc.text('কোন ডাটা পাওয়া যায়নি', pageWidth / 2, startY, { align: 'center' });
+            doc.save('fmt_tracker_subject.pdf');
+            return;
+        }
+        
         const headers = [['ক্রমিক', 'তারিখ', 'বিষয়', 'নম্বর', 'ব্রাঞ্চ', 'কেন্দ্রীয়']];
         const rows = data.map(d => [
             toBanglaNumber(d.serial),
@@ -2098,31 +2302,20 @@ async function exportToPDF() {
             },
             styles: { 
                 font: 'helvetica',
-                fontSize: 8,
-                cellPadding: 3
+                fontSize: 9,
+                cellPadding: 4,
+                halign: 'center'
             },
             margin: { left: 10, right: 10 },
             columnStyles: {
-                2: { cellWidth: 40 } // বিষয় কলামের প্রস্থ
+                0: { cellWidth: 15 },
+                1: { cellWidth: 25 },
+                2: { cellWidth: 40 },
+                3: { cellWidth: 25 },
+                4: { cellWidth: 20 },
+                5: { cellWidth: 25 }
             }
         });
-    }
-    
-    // ফুটার
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        
-        // পৃষ্ঠা নম্বর
-        doc.text(`পৃষ্ঠা ${toBanglaNumber(i)}/${toBanglaNumber(pageCount)}`, pageWidth / 2, doc.internal.pageSize.height - 15, { align: 'center' });
-        
-        // ক্রেডিট
-        doc.text('ডেভেলপার: Muhtasim Rahman (Turzo) - https://mdturzo.odoo.com', pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-        
-        // সংস্করণ
-        doc.text('Udvash FMT Tracker Pro V19.0', pageWidth / 2, doc.internal.pageSize.height - 5, { align: 'center' });
     }
     
     const fileName = `fmt_tracker_${dataType}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -2141,85 +2334,102 @@ function printData() {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Udvash FMT Tracker - Print</title>
-            <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+            <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
             <style>
                 @media print {
                     @page { 
-                        margin: 15mm; 
+                        margin: 10mm; 
                         size: A4;
                     }
                     body { 
                         margin: 0; 
                         font-family: 'Hind Siliguri', 'Inter', sans-serif;
                         color: #1f2937;
+                        font-size: 12px;
                     }
                     .print-header {
                         text-align: center;
-                        margin-bottom: 20px;
-                        padding-bottom: 15px;
+                        margin-bottom: 15px;
+                        padding-bottom: 10px;
                         border-bottom: 2px solid #6366f1;
+                        position: relative;
                     }
                     .print-title {
                         color: #6366f1;
                         margin: 0 0 5px 0;
-                        font-size: 22px;
+                        font-size: 18px;
+                        font-weight: 800;
                     }
-                    .print-subtitle {
+                    .print-footer {
+                        position: fixed;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        background: #f3f4f6;
+                        padding: 8px 15px;
+                        border-top: 1px solid #e5e7eb;
+                        font-size: 10px;
                         color: #6b7280;
-                        margin: 0;
-                        font-size: 14px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
                     }
                     table {
                         width: 100%;
                         border-collapse: collapse;
-                        margin-top: 15px;
-                        font-size: 12px;
+                        margin-top: 10px;
+                        font-size: 11px;
                     }
                     th {
                         background-color: #6366f1;
                         color: white;
-                        padding: 10px;
+                        padding: 8px;
                         text-align: left;
                         font-weight: 600;
                         border: 1px solid #ddd;
+                        font-size: 11px;
                     }
                     td {
-                        padding: 8px;
+                        padding: 6px;
                         border: 1px solid #ddd;
+                        font-size: 11px;
                     }
                     tr:nth-child(even) {
                         background-color: #f9fafb;
                     }
-                    .print-footer {
-                        margin-top: 30px;
-                        padding-top: 15px;
-                        border-top: 1px solid #e5e7eb;
-                        text-align: center;
-                        font-size: 11px;
-                        color: #6b7280;
-                    }
-                    .footer-row {
-                        display: flex;
-                        justify-content: space-between;
-                        margin-top: 10px;
-                    }
                     .page-number {
                         text-align: right;
-                        font-size: 10px;
+                        font-size: 9px;
                         color: #9ca3af;
-                        margin-top: 20px;
+                        margin-top: 15px;
+                    }
+                    .no-print { display: none; }
+                }
+                @media screen {
+                    body { 
+                        padding: 20px;
+                        background: #f3f4f6;
+                    }
+                    .print-content {
+                        background: white;
+                        padding: 20px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                        max-width: 800px;
+                        margin: 0 auto;
                     }
                 }
             </style>
         </head>
         <body>
-            <div class="print-header">
-                <h1 class="print-title">Udvash FMT Tracker Pro</h1>
-                <p class="print-subtitle">
-                    রিপোর্ট তারিখ: ${new Date().toLocaleDateString('bn-BD')}<br>
-                    ডাটা টাইপ: ${dataType === 'course' ? 'কোর্স মেরিট' : dataType === 'subject' ? 'বিষয়ভিত্তিক' : 'সব ডাটা'}
-                </p>
-            </div>
+            <div class="print-content">
+                <div class="print-header">
+                    <h1 class="print-title">Udvash FMT Tracker Pro</h1>
+                    <div style="font-size: 11px; color: #6b7280; display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>রিপোর্ট তারিখ: ${new Date().toLocaleDateString('bn-BD')}</span>
+                        <span>ডাটা টাইপ: ${dataType === 'course' ? 'কোর্স মেরিট' : dataType === 'subject' ? 'বিষয়ভিত্তিক' : 'সব ডাটা'}</span>
+                    </div>
+                </div>
     `;
     
     if (dataType === 'course') {
@@ -2294,22 +2504,23 @@ function printData() {
     }
     
     printContent += `
-            <div class="print-footer">
-                <div class="footer-row">
-                    <div>
-                        <strong>ডেভেলপার:</strong> Muhtasim Rahman (Turzo)
-                    </div>
-                    <div>
-                        <strong>ওয়েবসাইট:</strong> https://mdturzo.odoo.com
-                    </div>
+                <div class="print-footer no-print">
+                    <div>ডেভেলপার: Muhtasim Rahman (Turzo)</div>
+                    <div>ওয়েবসাইট: https://mdturzo.odoo.com</div>
+                    <div>Udvash FMT Tracker Pro V19.3</div>
                 </div>
-                <div style="margin-top: 10px;">
-                    Udvash FMT Tracker Pro V19.0
+                <div class="page-number">
+                    পাতা ১/১
                 </div>
             </div>
-            <div class="page-number">
-                পাতা ১/১
-            </div>
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(function() {
+                        window.close();
+                    }, 100);
+                };
+            </script>
         </body>
         </html>
     `;
@@ -2317,96 +2528,34 @@ function printData() {
     const printWindow = window.open('', '_blank');
     printWindow.document.write(printContent);
     printWindow.document.close();
-    printWindow.focus();
-    
-    // প্রিন্ট ডায়ালগ শো করার আগে ছোটো বিরতি
-    setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-    }, 250);
-}
-
-function showUserManual() {
-    openModal(`
-        <div class="reset-top-banner" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);">
-            <div class="reset-icon-anim" style="background: #3b82f6; color: white;">
-                <i class="fas fa-book-open"></i>
-            </div>
-            <h3 style="color: #1e40af; margin-top: 10px;">ব্যবহার নির্দেশিকা</h3>
-            <p style="color: #3b82f6; font-size: 13px; margin-top: 5px;">Udvash FMT Tracker Pro V19.0</p>
-        </div>
-        <div class="reset-body">
-            <div class="manual-section">
-                <h4><i class="fas fa-lock" style="color: #6366f1;"></i> সিকিউরিটি সিস্টেম</h4>
-                <p>৬ ডিজিটের পিন দিয়ে অ্যাপ লক করা যায়। প্রথমবার ব্যবহারের জন্য ডিফল্ট পিন: 000000</p>
-            </div>
-            
-            <div class="manual-section">
-                <h4><i class="fas fa-layer-group" style="color: #10b981;"></i> ডুয়াল মোড সিস্টেম</h4>
-                <p>১. <strong>কোর্স মেরিট মোড:</strong> পরীক্ষাভিত্তিক মেরিট ট্র্যাকিং<br>
-                   ২. <strong>বিষয়ভিত্তিক মোড:</strong> বিষয় অনুযায়ী নম্বর ও মেরিট ট্র্যাকিং</p>
-            </div>
-            
-            <div class="manual-section">
-                <h4><i class="fas fa-plus-circle" style="color: #f59e0b;"></i> ডাটা এন্ট্রি</h4>
-                <p><strong>কোর্স মোডে:</strong> ব্রাঞ্চ ও সেন্ট্রাল মেরিট ইনপুট দিন<br>
-                   <strong>বিষয় মোডে:</strong> বিষয় নির্বাচন করে নম্বর ও মেরিট আপডেট করুন</p>
-            </div>
-            
-            <div class="manual-section">
-                <h4><i class="fas fa-chart-line" style="color: #8b5cf6;"></i> ডাটা বিশ্লেষণ</h4>
-                <p>• লাইন চার্টে মেরিটের অগ্রগতি দেখুন<br>
-                   • বার চার্টে নম্বর বণ্টন দেখুন<br>
-                   • সারাংশ কার্ডে গুরুত্বপূর্ণ মেট্রিক্স দেখুন</p>
-            </div>
-            
-            <div class="manual-section">
-                <h4><i class="fas fa-filter" style="color: #ef4444;"></i> ফিল্টার সিস্টেম</h4>
-                <p>• বছর ও মাস অনুযায়ী ফিল্টার করুন<br>
-                   • তারিখ রেঞ্জ সিলেক্ট করুন<br>
-                   • বিষয়ভিত্তিক স্মার্ট ফিল্টার ব্যবহার করুন</p>
-            </div>
-            
-            <div class="manual-section">
-                <h4><i class="fas fa-download" style="color: #6366f1;"></i> ডাটা এক্সপোর্ট</h4>
-                <p>• CSV ফরমেটে এক্সেল ডাউনলোড<br>
-                   • PDF ফরমেটে রিপোর্ট ডাউনলোড<br>
-                   • সরাসরি প্রিন্ট অপশন</p>
-            </div>
-            
-            <div class="manual-section">
-                <h4><i class="fas fa-bell" style="color: #f59e0b;"></i> রিমাইন্ডার সিস্টেম</h4>
-                <p>কাস্টম সময়ে নোটিফিকেশন সেট করুন। ওয়েব বন্ধ থাকলেও নোটিফিকেশন কাজ করবে।</p>
-            </div>
-            
-            <div class="manual-section">
-                <h4><i class="fas fa-mobile-alt" style="color: #10b981;"></i> PWA সাপোর্ট</h4>
-                <p>মোবাইল বা ডেস্কটপে অ্যাপ হিসেবে ইনস্টল করুন। অফলাইন ব্যবহারের সুবিধা পান।</p>
-            </div>
-            
-            <div class="divider-line"></div>
-            
-            <div class="tips-section">
-                <h5><i class="fas fa-lightbulb" style="color: #f59e0b;"></i> দরকারি টিপস</h5>
-                <ul>
-                    <li>রেগুলার ডাটা এন্ট্রি করুন বিস্তারিত বিশ্লেষণের জন্য</li>
-                    <li>ফিল্টার ব্যবহার করে নির্দিষ্ট সময়ের ডাটা দেখুন</li>
-                    <li>চার্ট ডাউনলোড করে অফলাইন স্টাডি করুন</li>
-                    <li>রিমাইন্ডার সেট করে নিয়মিত আপডেটের অভ্যাস গড়ুন</li>
-                </ul>
-            </div>
-            
-            <div class="reset-footer">
-                <button class="btn-reset-cancel" onclick="closeModal()" style="flex: 1;">
-                    <i class="fas fa-times"></i> বন্ধ করুন
-                </button>
-            </div>
-        </div>
-    `);
 }
 
 /* ==========================
-⚙️ Section: 12 Events & Init (Improved)
+📚 Section: 12 Documentation
+========================== */
+
+async function showDocumentation() {
+    try {
+        const response = await fetch('README.md');
+        const markdown = await response.text();
+        const html = marked.parse(markdown);
+        
+        $('#documentationContent').innerHTML = html;
+        $('#documentationModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    } catch (error) {
+        console.error('Error loading documentation:', error);
+        showToast('ডকুমেন্টেশন লোড করতে ব্যর্থ হয়েছে', 'error');
+    }
+}
+
+function closeDocumentation() {
+    $('#documentationModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+/* ==========================
+⚙️ Section: 13 Events & Init
 ========================== */
 
 function initOfflineAndPWA() {
@@ -2507,9 +2656,6 @@ function setupEvents() {
             updateViewTitle();
             
             // মোড সুইচার এবং ফিল্টার বার শো/হাইড
-            const shouldShowModeSwitcher = ['tabInput', 'tabTable', 'tabGraph'].includes(target);
-            if ($('#modeSwitcher')) $('#modeSwitcher').classList.toggle('hidden', !shouldShowModeSwitcher);
-            
             const showFilter = (target === "tabTable" || target === "tabGraph");
             if ($("#filterBar")) $("#filterBar").classList.toggle("hidden", !showFilter || appMode !== 'course');
             if ($("#subjectFilterBar")) $("#subjectFilterBar").classList.toggle("hidden", !showFilter || appMode !== 'subject');
@@ -2525,6 +2671,8 @@ function setupEvents() {
     // 5. Mode Switcher
     if ($("#btnModeCourse")) $("#btnModeCourse").onclick = () => switchMode('course');
     if ($("#btnModeSubject")) $("#btnModeSubject").onclick = () => switchMode('subject');
+    if ($("#btnModeCourseHeader")) $("#btnModeCourseHeader").onclick = () => switchMode('course');
+    if ($("#btnModeSubjectHeader")) $("#btnModeSubjectHeader").onclick = () => switchMode('subject');
 
     // 6. Course Filters
     ["yearSelect", "monthSelect", "startDate", "endDate"].forEach(id => {
@@ -2615,51 +2763,73 @@ function setupEvents() {
     });
 
     // 12. User Activity Tracking
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
     activityEvents.forEach(event => {
         document.addEventListener(event, resetInactivityTimer);
     });
     
     // 13. Float number support for subject marks
     $('#inpSubObtained').addEventListener('input', function(e) {
-        // Allow decimal numbers
         this.value = this.value.replace(/[^0-9.]/g, '');
     });
     
-    // 14. Chart download buttons (placeholder)
-    $$('.chart-download-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            showToast("চার্ট ডাউনলোড ফিচারটি শীঘ্রই আসছে...", "default");
-        });
+    // 14. Close modals on outside click
+    document.addEventListener('click', function(event) {
+        // Close documentation modal
+        const docModal = $('#documentationModal');
+        if (docModal && !docModal.contains(event.target) && event.target.id !== 'userManualBtn' && !event.target.closest('#userManualBtn')) {
+            closeDocumentation();
+        }
+        
+        // Close row action modal
+        const actionModal = $('#rowActionModal');
+        if (actionModal && !actionModal.contains(event.target) && !event.target.closest('.dropdown-toggle')) {
+            actionModal.classList.add('hidden');
+        }
+        
+        // Close edit modal
+        const editModal = $('#editModal');
+        if (editModal && !editModal.contains(event.target)) {
+            closeEditModal();
+        }
+    });
+    
+    // 15. Escape key to close modals
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+            closeDocumentation();
+            closeEditModal();
+            $('#rowActionModal').classList.add('hidden');
+        }
     });
 }
 
 // ---- ( App Entry Point ) ----
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Detect device theme
-    detectDeviceTheme();
-    
-    // 2. Load Theme
+    // Set dark theme immediately if needed
     const savedTheme = localStorage.getItem(LS_THEME);
     if (savedTheme === "dark") {
         document.body.classList.add("dark-theme");
-        if ($("#darkToggleSet")) $("#darkToggleSet").checked = true;
     }
-
-    // 3. Setup All Events
+    
+    // 1. Detect device theme
+    detectDeviceTheme();
+    
+    // 2. Setup All Events
     initOfflineAndPWA();
     if ($("#pinAutoToggleSet")) $("#pinAutoToggleSet").checked = autoPinVerify;
     setupEvents();
     renderReminders();
     updateDateDisplay();
     
-    // 4. Set initial mode UI
+    // 3. Set initial mode UI
     initializeAppMode();
     
-    // 5. Initial Focus
+    // 4. Initial Focus
     if (window.innerWidth > 992) $("#pinInput")?.focus();
     
-    // 6. Init Pagination UI
+    // 5. Init Pagination UI
     const rowSelector = $("#rowsPerPage");
     if (rowSelector) rowSelector.value = pRowsPerPage === 999999 ? "all" : pRowsPerPage;
     
@@ -2668,14 +2838,17 @@ document.addEventListener("DOMContentLoaded", () => {
     
     $$(".p-btn").forEach(b => b.classList.toggle("active", b.getAttribute("onclick").includes(pMode)));
     
-    // 7. Start notification checks
+    // 6. Start notification checks
     setInterval(checkNotifications, 60000); // প্রতি মিনিটে চেক
     
-    // 8. Setup auto refresh
+    // 7. Setup auto refresh
     setupAutoRefresh();
     
-    // 9. Reset inactivity timer
+    // 8. Reset inactivity timer
     resetInactivityTimer();
+    
+    // 9. Check install state
+    setTimeout(checkInstallState, 1000);
 });
 
 // ---- ( Service Worker ) ----
@@ -2688,7 +2861,7 @@ if ('serviceWorker' in navigator) {
 }
 
 /* ==========================
-🔧 Section: 13 Utility Functions
+🔧 Section: 14 Utility Functions
 ========================== */
 
 // টগল পাসওয়ার্ড ভিজিবিলিটি
@@ -2735,9 +2908,6 @@ function checkInstallState() {
     }
 }
 
-// অ্যাপ লোড হলে চেক করুন
-setTimeout(checkInstallState, 1000);
-
 // চার্ট ডাউনলোড ফাংশন (প্লেসহোল্ডার)
 window.downloadChart = (chartId) => {
     showToast("চার্ট ডাউনলোড ফিচারটি শীঘ্রই আসছে...", "default");
@@ -2755,23 +2925,13 @@ function formatBanglaDate(dateStr) {
     return `${toBanglaNumber(day)} ${monthName}, ${toBanglaNumber(year)}`;
 }
 
-// কার্সর টাইপ ফিক্স
-document.addEventListener('DOMContentLoaded', function() {
-    // ইনপুট ফিল্ডে টেক্সট কার্সর
-    const textInputs = document.querySelectorAll('input[type="text"], input[type="number"], input[type="password"], textarea');
-    textInputs.forEach(input => {
-        input.style.cursor = 'text';
+// সার্ভিস ওয়ার্কার আপডেট
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js').then(function(registration) {
+            console.log('ServiceWorker registration successful');
+        }, function(err) {
+            console.log('ServiceWorker registration failed: ', err);
+        });
     });
-    
-    // বাটনে পয়েন্টার কার্সর
-    const buttons = document.querySelectorAll('button, .btn, .key-btn, .tabBtn, .m-nav-link');
-    buttons.forEach(button => {
-        button.style.cursor = 'pointer';
-    });
-    
-    // সিলেক্ট বক্সে ডিফল্ট কার্সর
-    const selects = document.querySelectorAll('select');
-    selects.forEach(select => {
-        select.style.cursor = 'default';
-    });
-});
+}
